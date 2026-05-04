@@ -1,0 +1,4 @@
+extensions {
+	./forward-auth.so
+	./forward-auth.wasm type=wasm
+}
