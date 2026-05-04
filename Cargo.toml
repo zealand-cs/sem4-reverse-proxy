@@ -1,0 +1,16 @@
+[package]
+name = "reverse-proxy"
+description = "Extensible reverse proxy for exam project"
+version = "0.1.0"
+edition = "2024"
+authors = ["William Jelgren <william@jelgren.dk>"]
+
+[features]
+default = []
+
+ffi = []
+wasm = []
+
+[dependencies]
+kdl = { version = "6.5.0" }
+clap = { version = "4.6.1", features = ["env", "derive"] }
