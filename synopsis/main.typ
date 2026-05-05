@@ -51,7 +51,7 @@ eller bekvemmelighed for brugeren.
 
 Hvordan kan en reverse proxy implementeret i Rust designes til at understøtte
 udvidelser via WASM og FFI, og hvilke forskelle er der mellem disse to tilgange
-i forhold til implementering, udvikling af udvidelserne og ressourceforbrug?
+i forhold til implementering, udvikling og ressourceforbrug?
 
 Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformuleringen:
 
