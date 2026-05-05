@@ -1,5 +1,5 @@
 {
-  description = "Development flake for Rust";
+  description = "Semester 4 exam flake";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
 
@@ -11,6 +11,9 @@
 
     fenix.url = "github:nix-community/fenix";
     fenix.inputs.nixpkgs.follows = "nixpkgs";
+
+    typix.url = "github:loqusion/typix";
+    typix.inputs.nixpkgs.follows = "nixpkgs";
   };
   outputs =
     inputs@{
@@ -25,6 +28,10 @@
         "aarch64-linux"
         "x86_64-darwin"
         "aarch64-darwin"
+      ];
+
+      imports = [
+        ./synopsis/typst.nix
       ];
 
       perSystem =
@@ -66,27 +73,22 @@
             };
           };
 
-          packages.default =
-            (pkgs.rustPlatform.buildRustPackage {
-              cargo = rustToolchain;
-              rustc = rustToolchain;
-            })
-              {
-                pname = "reverse-proxy";
-                version = "0.0.1";
-                src = pkgs.lib.cleanSource ./.;
-                cargoLock.lockFile = ./Cargo.lock;
+          packages.default = (pkgs.rustPlatform.buildRustPackage) {
+            pname = "reverse-proxy";
+            version = "0.0.1";
+            src = pkgs.lib.cleanSource ./.;
+            cargoLock.lockFile = ./Cargo.lock;
 
-                buildInputs = with pkgs; [
-                  openssl
-                ];
+            buildInputs = with pkgs; [
+              openssl
+            ];
 
-                nativeBuildInputs = with pkgs; [
-                  pkg-config
-                ];
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+            ];
 
-                meta.mainProgram = "reverse-proxy";
-              };
+            meta.mainProgram = "reverse-proxy";
+          };
         };
     });
 }
