@@ -1,7 +1,9 @@
 # IDE
 .direnv
 
+# Config
 !.env.example
 **.env**
 
+# Rust
 target/
