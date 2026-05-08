@@ -5,5 +5,8 @@
 **.env**
 !.env.example
 
+**.kdl
+!example.kdl
+
 # Rust
 target/

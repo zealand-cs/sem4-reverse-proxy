@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use wasmtime::{Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
+use wasmtime::{Caller, Engine, Instance, Linker, Memory, Module, Store, TypedFunc};
 
 use super::{Extension, HookResult, LoadError, caps, protocol};
 
@@ -17,9 +17,9 @@ struct WasmExtensionInstance {
     fn_free: TypedFunc<(i32, i32), ()>,
     fn_on_load: TypedFunc<(), ()>,
     fn_on_unload: TypedFunc<(), ()>,
-    fn_on_request: Option<TypedFunc<(i32, i32), (i32, i32)>>,
-    fn_on_response: Option<TypedFunc<(i32, i32), (i32, i32)>>,
-    fn_on_error: Option<TypedFunc<(i32, i32), (i32, i32)>>,
+    fn_on_request: Option<TypedFunc<(i32, i32), i64>>,
+    fn_on_response: Option<TypedFunc<(i32, i32), i64>>,
+    fn_on_error: Option<TypedFunc<(i32, i32), i64>>,
 }
 
 /// Public adapter. Wraps the instance in a Mutex because wasmtime's Store is !Sync.
@@ -41,7 +41,24 @@ pub fn load_wasm_extension(path: &str) -> Result<Box<dyn Extension>, LoadError> 
     let engine = Engine::default();
     let module = Module::from_file(&engine, path).map_err(LoadError::Wasm)?;
 
-    let linker: Linker<HostData> = Linker::new(&engine);
+    let mut linker: Linker<HostData> = Linker::new(&engine);
+    linker
+        .func_wrap(
+            "env",
+            "log",
+            |mut caller: Caller<HostData>, ptr: i32, len: i32| {
+                let memory = caller
+                    .get_export("memory")
+                    .and_then(|e| e.into_memory())
+                    .unwrap();
+                let data = memory.data(&caller);
+                let bytes = &data[ptr as usize..(ptr + len) as usize];
+                if let Ok(s) = std::str::from_utf8(bytes) {
+                    print!("{s}");
+                }
+            },
+        )
+        .map_err(LoadError::Wasm)?;
     let mut store = Store::new(&engine, HostData);
 
     let instance = linker
@@ -74,7 +91,7 @@ pub fn load_wasm_extension(path: &str) -> Result<Box<dyn Extension>, LoadError> 
         .map_err(LoadError::Wasm)? as u32;
 
     let fn_on_request = if caps::has(capability_mask, caps::ON_REQUEST) {
-        Some(get_typed_func::<(i32, i32), (i32, i32)>(
+        Some(get_typed_func::<(i32, i32), i64>(
             &instance,
             &mut store,
             "plugin_on_request",
@@ -83,7 +100,7 @@ pub fn load_wasm_extension(path: &str) -> Result<Box<dyn Extension>, LoadError> 
         None
     };
     let fn_on_response = if caps::has(capability_mask, caps::ON_RESPONSE) {
-        Some(get_typed_func::<(i32, i32), (i32, i32)>(
+        Some(get_typed_func::<(i32, i32), i64>(
             &instance,
             &mut store,
             "plugin_on_response",
@@ -92,7 +109,7 @@ pub fn load_wasm_extension(path: &str) -> Result<Box<dyn Extension>, LoadError> 
         None
     };
     let fn_on_error = if caps::has(capability_mask, caps::ON_ERROR) {
-        Some(get_typed_func::<(i32, i32), (i32, i32)>(
+        Some(get_typed_func::<(i32, i32), i64>(
             &instance,
             &mut store,
             "plugin_on_error",
@@ -178,7 +195,7 @@ fn wasm_write(store: &mut Store<HostData>, memory: &Memory, ptr: i32, data: &[u8
 // --- WasmExtensionInstance hook dispatcher ----------------------------------
 
 impl WasmExtensionInstance {
-    fn call_hook(&mut self, hook: TypedFunc<(i32, i32), (i32, i32)>, ctx: &[u8]) -> HookResult {
+    fn call_hook(&mut self, hook: TypedFunc<(i32, i32), i64>, ctx: &[u8]) -> HookResult {
         let ctx_len = ctx.len() as i32;
 
         // allocate space in WASM linear memory for the context buffer.
@@ -191,10 +208,12 @@ impl WasmExtensionInstance {
         wasm_write(&mut self.store, &self.memory, wasm_ptr, ctx);
 
         // call the hook function.
-        let (result_ptr, result_len) = match hook.call(&mut self.store, (wasm_ptr, ctx_len)) {
+        let packed = match hook.call(&mut self.store, (wasm_ptr, ctx_len)) {
             Ok(r) => r,
             Err(e) => return HookResult::Error(format!("hook call failed: {e}")),
         };
+        let result_ptr = (packed & 0xFFFFFFFF) as i32;
+        let result_len = ((packed >> 32) & 0xFFFFFFFF) as i32;
 
         // read result bytes from WASM memory.
         let result_bytes = wasm_read(&self.store, &self.memory, result_ptr, result_len);

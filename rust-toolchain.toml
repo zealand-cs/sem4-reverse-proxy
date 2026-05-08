@@ -1,6 +1,6 @@
 [toolchain]
 channel = "1.95"
 components = [ "rust-analyzer", "rust-src", "rustc" ]
-targets = [ ]
+targets = [ "wasm32-unknown-unknown" ]
 profile = "default"
 
