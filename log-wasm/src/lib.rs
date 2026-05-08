@@ -11,8 +11,6 @@ fn host_log(msg: &str) {
     unsafe { log(msg.as_ptr(), msg.len()) }
 }
 
-// --- Protocol types ----------------------------------------------------------
-
 #[derive(Deserialize)]
 struct RequestContext {
     method: String,
@@ -39,8 +37,6 @@ struct PluginResult {
     message: String,
 }
 
-// --- Memory management -------------------------------------------------------
-
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_alloc(size: i32) -> i32 {
     let layout = std::alloc::Layout::from_size_align(size as usize, 1).unwrap();
@@ -52,8 +48,6 @@ pub extern "C" fn plugin_free(ptr: i32, len: i32) {
     let layout = std::alloc::Layout::from_size_align(len as usize, 1).unwrap();
     unsafe { std::alloc::dealloc(ptr as *mut u8, layout) }
 }
-
-// --- Plugin metadata ---------------------------------------------------------
 
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_name() -> i32 {
@@ -70,15 +64,11 @@ pub extern "C" fn plugin_capabilities() -> i32 {
     0b001 // ON_REQUEST
 }
 
-// --- Lifecycle hooks ---------------------------------------------------------
-
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_on_load() {}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_on_unload() {}
-
-// --- Request hook ------------------------------------------------------------
 
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_on_request(ctx_ptr: i32, ctx_len: i32) -> i64 {

@@ -1,5 +1,5 @@
 [workspace]
-members = ["demo-server", "log-wasm"]
+members = ["demo-server", "log-wasm", "log-ffi"]
 resolver = "2"
 
 [workspace.dependencies]
