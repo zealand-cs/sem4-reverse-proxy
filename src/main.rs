@@ -30,7 +30,11 @@ async fn main() {
 
     let args = Args::parse();
 
-    let file = std::fs::read_to_string(args.config_file.unwrap()).unwrap();
+    let config_file = args.config_file.unwrap();
+
+    let Ok(file) = std::fs::read_to_string(&config_file) else {
+        panic!("{} file not found", &config_file);
+    };
     let cfg = Config::from_kdl_string(&file).unwrap();
 
     let mut exts = Extensions::new();

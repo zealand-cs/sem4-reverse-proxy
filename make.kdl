@@ -1,0 +1,8 @@
+extensions {
+	"./target/wasm32-unknown-unknown/release/log_wasm.wasm" kind=wasm
+	"./target/release/liblog_ffi.so" kind=ffi
+}
+
+localhost {
+	proxy_pass "/demo" to="localhost:3060"
+}

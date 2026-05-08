@@ -1,8 +1,8 @@
 #[cfg(feature = "ffi")]
 mod ffi;
+pub mod protocol;
 #[cfg(feature = "wasm")]
 mod wasm;
-pub mod protocol;
 
 /// Capability bitmasks plugins can OR together to declare which hooks they implement.
 pub mod caps {
@@ -61,12 +61,7 @@ pub trait Extension: Send + Sync {
         body: &[u8],
     ) -> HookResult;
 
-    fn on_response(
-        &self,
-        status: u16,
-        headers: &[(String, String)],
-        body: &[u8],
-    ) -> HookResult;
+    fn on_response(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> HookResult;
 
     fn on_error(&self, status: u16, upstream_url: &str) -> HookResult;
 }

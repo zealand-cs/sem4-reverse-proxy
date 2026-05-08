@@ -1,0 +1,26 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.build-log-ffi]
+command = "cargo"
+args = ["build", "-p", "log-ffi", "--release"]
+
+[tasks.build-log-wasm]
+command = "cargo"
+args = ["build", "-p", "log-wasm", "--release", "--target", "wasm32-unknown-unknown"]
+
+[tasks.run-demo-server]
+command = "cargo"
+args = ["run", "-p", "demo-server"]
+
+[tasks.run-demo-proxy]
+dependencies = [
+	"build-log-ffi",
+	"build-log-wasm",
+]
+command = "cargo"
+args = ["run", "-p", "reverse-proxy", "--", "-c", "./make.kdl", "-p", "8080"]
+
+[tasks.example-proxy]
+workspace = false
+run_task = { name = ["run-demo-server", "run-demo-proxy"], parallel = true }

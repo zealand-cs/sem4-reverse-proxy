@@ -42,7 +42,10 @@ impl TryFrom<&KdlNode> for HostConfig {
                     continue;
                 };
 
-                rules.push(ProxyRule { path_prefix, upstream });
+                rules.push(ProxyRule {
+                    path_prefix,
+                    upstream,
+                });
             }
         }
 

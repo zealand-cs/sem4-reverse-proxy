@@ -55,6 +55,7 @@
           devShells.default = pkgs.mkShell {
             buildInputs = with pkgs; [
               rustToolchain
+              cargo-make
 
               # Database
               postgresql_18
