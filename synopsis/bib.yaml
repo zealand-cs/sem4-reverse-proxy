@@ -5,3 +5,9 @@ harry:
     volume: 5
     page-total: 768
     date: 2003-06-21
+dll-plugin-management:
+    type: Web
+    title: Dynamic Library Loading in Rust and Plugin Management
+    author: Mayer
+    url: https://mayer-pu.medium.com/in-a-recent-project-we-encountered-an-issue-that-required-dynamic-loading-of-different-runtime-2b58aab9f6ad
+    date: 2024-02-29

@@ -1,8 +1,9 @@
 use clap::Parser;
 
 mod config;
+mod extensions;
 
-use config::Cfg;
+use config::Config;
 
 #[derive(clap::Parser, Debug)]
 struct Args {
@@ -16,7 +17,7 @@ fn main() {
     let args = Args::parse();
 
     let file = std::fs::read_to_string(args.config_file.unwrap()).unwrap();
-    let cfg = Cfg::from_kdl_string(file);
+    let cfg = Config::from_kdl_string(&file);
 
     println!("hewwo");
 }

@@ -1,4 +1,13 @@
 extensions {
-	./forward-auth.so
-	./forward-auth.wasm type=wasm
+	"./log.so"
+	"./log.wasm" kind=wasm
+}
+
+global {
+}
+
+
+localhost:80 {
+	proxy_pass "/service1" to="localhost:4050"
+	proxy_pass "/service2" to="localhost:4060"
 }

@@ -1,6 +1,6 @@
 [toolchain]
-channel = "1.91.1"
-components = [ "rust-analyzer" ]
+channel = "1.95"
+components = [ "rust-analyzer", "rust-src", "rustc" ]
 targets = [ ]
 profile = "default"
 
