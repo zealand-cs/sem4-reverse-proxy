@@ -1,13 +1,19 @@
 use kdl::{KdlDocument, KdlError};
 
-use crate::config::{extensions::ExtensionConfig, global::GlobalConfig};
+use extensions::ExtensionConfig;
+use global::GlobalConfig;
 
-mod extensions;
+pub mod extensions;
 mod global;
+mod host;
 
+pub use host::HostConfig;
+
+#[derive(Debug)]
 pub struct Config {
-    extensions: Option<ExtensionConfig>,
-    global: Option<GlobalConfig>,
+    pub extensions: Option<ExtensionConfig>,
+    pub global: Option<GlobalConfig>,
+    pub hosts: Vec<HostConfig>,
 }
 
 impl Config {
@@ -21,9 +27,18 @@ impl Config {
 
         let global_config = doc.get("global").map(GlobalConfig::try_from).transpose()?;
 
+        let known = ["extensions", "global"];
+        let hosts = doc
+            .nodes()
+            .iter()
+            .filter(|n| !known.contains(&n.name().value()))
+            .map(HostConfig::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
         Ok(Self {
             extensions,
             global: global_config,
+            hosts,
         })
     }
 }

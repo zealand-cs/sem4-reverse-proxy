@@ -17,13 +17,15 @@ impl From<&str> for ExtensionKind {
     }
 }
 
+#[derive(Debug)]
 pub struct Extension {
-    file: String,
-    kind: ExtensionKind,
+    pub file: String,
+    pub kind: ExtensionKind,
 }
 
+#[derive(Debug)]
 pub struct ExtensionConfig {
-    extensions: Vec<Extension>,
+    pub extensions: Vec<Extension>,
 }
 
 impl TryFrom<&KdlNode> for ExtensionConfig {

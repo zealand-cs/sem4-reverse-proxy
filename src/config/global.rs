@@ -1,16 +1,13 @@
 use kdl::{KdlError, KdlNode};
 
-pub struct GlobalConfig {
-    h: Option<String>,
-}
+#[derive(Debug)]
+pub struct GlobalConfig {}
 
 impl TryFrom<&KdlNode> for GlobalConfig {
     type Error = KdlError;
 
-    fn try_from(node: &KdlNode) -> Result<Self, Self::Error> {
-        Ok(Self {
-            h: Some("".to_string()),
-        })
+    fn try_from(_node: &KdlNode) -> Result<Self, Self::Error> {
+        Ok(Self {})
     }
 }
 

@@ -1,13 +1,11 @@
 extensions {
-	"./log.so"
+	"./log.so" kind=ffi
 	"./log.wasm" kind=wasm
 }
 
-global {
-}
+global { }
 
-
-localhost:80 {
+localhost {
 	proxy_pass "/service1" to="localhost:4050"
 	proxy_pass "/service2" to="localhost:4060"
 }

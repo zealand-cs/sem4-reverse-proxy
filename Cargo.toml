@@ -15,6 +15,11 @@ wasm = ["dep:wasmtime"]
 dotenvy = { version = "0.15.7" }
 clap = { version = "4.6.1", features = ["env", "derive"] }
 kdl = { version = "6.5.0" }
+tokio = { version = "1", features = ["full"] }
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["client", "client-legacy", "http1", "http2", "tokio"] }
+http-body-util = { version = "0.1" }
+bytes = { version = "1" }
 
 libloading = { version = "0.9", optional = true }
 
