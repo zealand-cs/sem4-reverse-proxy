@@ -2,8 +2,8 @@
 .direnv
 
 # Config
-!.env.example
 **.env**
+!.env.example
 
 # Rust
 target/
