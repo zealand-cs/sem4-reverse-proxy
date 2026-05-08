@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use clap::Parser;
 use hyper::server::conn::http1;
@@ -59,9 +59,8 @@ async fn main() {
 
     let proxy = Arc::new(ProxyRouter::new(cfg.hosts, exts.plugins));
 
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", args.port))
-        .await
-        .unwrap();
+    let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
+    let listener = TcpListener::bind(addr).await.unwrap();
 
     println!("Listening on {}", listener.local_addr().unwrap());
 

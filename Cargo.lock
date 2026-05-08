@@ -425,6 +425,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "demo-server"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "dotenvy",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "tokio",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -6,6 +6,8 @@ extensions {
 global { }
 
 localhost {
-	proxy_pass "/service1" to="localhost:4050"
-	proxy_pass "/service2" to="localhost:4060"
+	proxy_pass "/demo" to="localhost:3060"
+
+	proxy_pass "/service01" to="localhost:4050"
+	proxy_pass "/service02" to="localhost:4060"
 }
