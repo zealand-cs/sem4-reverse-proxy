@@ -1,13 +1,96 @@
-harry:
-    type: Book
-    title: Harry Potter and the Order of the Phoenix
-    author: Rowling, J. K.
-    volume: 5
-    page-total: 768
-    date: 2003-06-21
 dll-plugin-management:
-    type: Web
-    title: Dynamic Library Loading in Rust and Plugin Management
-    author: Mayer
-    url: https://mayer-pu.medium.com/in-a-recent-project-we-encountered-an-issue-that-required-dynamic-loading-of-different-runtime-2b58aab9f6ad
-    date: 2024-02-29
+  type: article
+  title: Dynamic Library Loading in Rust and Plugin Management
+  author: Mayer
+  url: 
+    value: https://mayer-pu.medium.com/in-a-recent-project-we-encountered-an-issue-that-required-dynamic-loading-of-different-runtime-2b58aab9f6ad
+    date: 2026-05-09
+  date: 2024-02-29
+
+docs-libloading:
+  type: web
+  title: libloading docs.rs documentation
+  author: nagisa
+  url: 
+    value: https://docs.rs/libloading/0.9.0/libloading
+    date: 2026-05-09
+  date: 2025-11-05
+
+docs-wasm-time:
+  type: web
+  title: wasmtime docs.rs documentation
+  author: wasmtime-publish
+  url:
+    value: https://docs.rs/wasmtime/44.0.1/wasmtime/
+    date: 2026-05-09
+  date: 2026-04-30
+
+docs-rmp-serde:
+  type: web
+  title: rmp-serde docs.rs documentation
+  author: 
+    - 3Hren
+    - kornelski
+  url:
+    value: https://docs.rs/rmp-serde/1.3.1/rmp_serde/
+    date: 2026-05-09
+  date: 2025-12-23
+
+docs-clap:
+  type: web
+  title: clap docs.rs documentation
+  author: kbknapp
+  url:
+    value: https://docs.rs/clap/4.6.1/clap/
+    date: 2026-05-09
+  date: 2026-04-15
+
+docs-kdl:
+  type: web
+  title: kdl docs.rs documentation
+  author: zkat
+  url:
+    value: https://docs.rs/kdl/6.5.0/kdl/ 
+    date: 2026-05-09
+  date: 2025-09-11
+
+docs-tokio:
+  type: web
+  title: tokio docs.rs documentation
+  author: 
+    - carllerche 
+    - Darksonn
+  url:
+    value: https://docs.rs/tokio/1.52.3/tokio/
+    date: 2026-05-09
+  date: 2026-05-08
+
+rust-cookbook:
+  type: web
+  title: The Rust Programming Language
+  author:
+    - Klabnik, Steve
+    - Nichols, Carol
+    - Krycho, Chris
+    - "contributions from the rest of the Rust Community"
+  url: https://doc.rust-lang.org/stable/book/
+
+rust-lang-docs-features:
+  type: web
+  title: Features - The Cargo Book
+  url:
+    value: https://doc.rust-lang.org/cargo/reference/features.html
+    date: 2026-05-18
+  parent:
+    type: web
+    title: The Rust Programming Language
+
+rust-lang-docs-traits:
+  type: web
+  title: Defining Shared Behavior with Traits
+  url:
+    value: https://doc.rust-lang.org/book/ch10-02-traits.html
+    date: 2026-05-18
+  parent:
+    type: web
+    title: The Rust Programming Language
