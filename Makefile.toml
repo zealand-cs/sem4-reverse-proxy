@@ -81,7 +81,7 @@ for cfg in no-plugins ffi wasm; do
   done) > results/memory_${cfg}_samples.txt &
   SAMPLER_PID=$!
 
-  oha -n 10000 -c 50 --no-tui http://localhost:8080/demo > results/load_${cfg}.txt
+  oha -n 10000 -c 50 --no-tui -o results/load_${cfg}.json --output-format json http://localhost:8080/demo
 
   kill $SAMPLER_PID 2>/dev/null || true
   kill $PROXY_PID 2>/dev/null || true

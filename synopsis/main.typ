@@ -1,5 +1,6 @@
 #import "./template.typ": synopsis
 #import "@preview/wordometer:0.1.5": total-characters, total-words, word-count
+#import "@preview/lilaq:0.6.0" as lq
 
 #let string-word-count(string) = (
   characters: string
@@ -153,6 +154,17 @@ WASM extensions bliver loadet og kørt med `wasmtime`, der er et api
 til at interagere med WASM moduler. `wasmtime` er designet til at
 den der implementerer craten skal bruge minimalt `unsafe` kode @docs-wasm-time.
 
+Første underspørgsmål til problemformuleringen bliver besvaret i form at at selve
+applikationen bliver udviklet og køres. Det er også første krav for at kunne besvare
+underspørgsmål to og tre. Underspørgsmål 2 besvares efter applikationen er udviklet,
+ved at kigge på koden. Bl.a. kan antallet af linjer kode, keywords og andre indikatorer
+bruges til at tjekke hvad foreskellene på `WASM` og `FFI` for en udvikler er.
+
+For at besvare underspørgsmål 3, bliver vi nødt til at benchmarke applikationen
+i forskellige stadier. Benchmarks der tester de forskellige parametre vil blive
+kørt ved en blanding af manuelt Bash scripts og programmer som hyperfine @hyperfine-github
+og oha @oha-github.
+
 = Planlægning
 
 // - Liste aktiviteter i rækkefølge
@@ -169,15 +181,22 @@ Her er en tabel med estimeret tid per opgave. Opgaverne er skrevet i en estimere
 rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udført.
 
 #table(
-  columns: (1fr, auto),
+  columns: (1fr, auto, auto),
   inset: 8pt,
   align: horizon,
-  table.header([*Aktivitet*], [*Estimeret tid*]),
-  [Basic Reverse Proxy], [2 timer],
-  [Config parsing for reverse proxyen], [2 timer],
-  [WASM og FFI protocol og integration], [6 timer],
-  [Test server reverse proxy kan forwarde til], [3 timer],
-  [Test om applikation lever op til målene], [2 timer],
+  table.header([*Aktivitet*], [*Estimeret tid*], [*Note*]),
+  [Planlægning], [0,5 dag], [],
+  [Introduktion og motivation], [0,5 dag], [],
+  [Problemformulering], [1 dag], [Inkl. bekræftelse],
+  [Basic Reverse Proxy], [1 dag], [],
+  [Config parsing for reverse proxyen], [0,5 dag], [],
+  [WASM og FFI protocol og integration], [2 dage], [],
+  [Test server reverse proxy kan forwarde til], [0,5 dag], [],
+  [Benchmarking], [1 dag], [],
+  [Undersøgelse af om spørgsmålene er besvaret], [2 dage], [],
+  [Reflektion], [1 dag], [],
+  [Præsentation til mundtlig eksamination], [1 dag], [],
+  [Forberedelse til mundtlig eksamen], [3 dage], [],
 )
 
 = Arbejdet
@@ -191,9 +210,184 @@ rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udfør
 // > Her skal I ikke bare vise kode, screenshots eller tabeller. I skal forklare,
 // > hvad arbejdet viser, og hvordan det hjælper jer med at svare på problemformuleringen.
 
-Det første der blev udviklet var selve config parsing og reverse proxyen. Det er
-i bund og grund rigtig simpelt, da den kun forwarder enhver request til en anden
-destination.
+For at kunne implementerer noget som helst med ekstensions må grundstenene på plads
+først. Det omhandler parsing af konfiguration, sætte en async-runtime op og så
+reelt route requests til destinationer.
+
+Konfigurationen skrives i KDL @docs-kdl, og definerer hvilke extensions der skal
+indlæses og hvilke ruter der proxyes til hvor. `tokio` bruges som async-runtime
+og `hyper` kommer til at håndtere HTTP. Feature flags @rust-lang-docs-features sørger
+for at `WASM`- og `FFI`-koden kompileres når de skal bruges. Dette sikrer at de
+to implementationer ikke påvirker hinanden på nogen måde under tests og benchmarking.
+
+== Extension interface
+
+For at både `FFI` og `WASM` bliver brugt på akkurat samme måde i proxyens kode,
+implementeres begge gennem et `Extension` trait @rust-lang-docs-traits. Traiten
+definerer nogle forskellige hooks: `on_load`, `on_unload`, `on_request`, `on_response`,
+og `on_error`. Extensions definerer så med en bitmask hvilke hooks de vil reagere
+på. Ved at bruge en bitmask kan man undgå unødvendige kald til extensions der ikke
+har nogen intensioner om at blive kaldt på specifikke hooks, og derved undgå at
+krydse mellem `WASM` eller andet eksternt sprog når det ikke er nødvendigt. En hook
+returnerer så en `HookResult` der enten er `Continue`, `Replace` eller `Error`.
+`Continue` bruges når alt forløb successfuldt og kan ændre headers og/eller body,
+`Replace` er et helt nyt svar og `Error` er når der sker en fejl.
+
+For at kommunikere mellem proxy og extensions bruges der MessagePack @docs-rmp-serde,
+der serialiserer request og response-kontekster til binære buffere. Ved at bruge
+MessagePack simplificerede vi dette projekts implementation, men kan i fremtiden
+også betyde at man kan skrive ekstensions i andre sprog der har MessagePack implementeret.
+
+Runtime-performance ville evt. kunne forbedres ved at bruge en custom protokol istedet.
+Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige fod.
+
+== Test-extensions
+
+For at kunne sammenligne parametrene på `FFI` og `WASM`, er to extensions med
+identisk funktionalitet blevet skrevet: `log-ffi` og `log-wasm` hhv. `FFI` og `WASM`
+som target. Begge extensions registrerer `ON_REQUEST`, deserialiserer konteksten
+og printer diverse detaljer om requesten i terminalen, og returnerer en `Continue`.
+
+Målet med disse to plugins er ikke at teste performance af WASM og FFI selv, men
+i stedet forbindelserne mellem hovedapplikationen og extensionsne og se hvor meget
+overhead dette bringer. Derfor er selve extensionsne meget simple uden nogen funktionalitet
+der faktisk er brugbar.
+
+== Benchmarks
+
+Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha`. Benchmarks
+kan blive kørt ved at køre ```bash cargo make bench-all```. Alle resultater vil
+blive skrevet til `results/` mappen i roden af repositoriet. Disse resultater vil
+hjælpe med at besvare underspørgsmål 3. Herunder vil resultaterne vises i form af
+grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst`
+@typst-app.
+
+#let _s_noplugins = json("results/startup_no-plugins.json").results.at(0)
+#let _s_ffi = json("results/startup_ffi.json").results.at(0)
+#let _s_wasm = json("results/startup_wasm.json").results.at(0)
+
+#let s_means = (_s_noplugins.mean * 1000, _s_ffi.mean * 1000, _s_wasm.mean * 1000)
+#let s_stddevs = (_s_noplugins.stddev * 1000, _s_ffi.stddev * 1000, _s_wasm.stddev * 1000)
+
+#figure(
+  lq.diagram(
+    width: 10cm,
+    height: 6cm,
+    yaxis: (label: [Opstartstid (ms)]),
+    xaxis: (
+      ticks: ((0, [no-plugins]), (1, [ffi]), (2, [wasm])),
+      subticks: none,
+    ),
+    legend: (position: right + top),
+    lq.bar((0,), (s_means.at(0),), width: 0.6, fill: blue.lighten(20%), label: [no-plugins]),
+    lq.bar((1,), (s_means.at(1),), width: 0.6, fill: green.lighten(20%), label: [ffi]),
+    lq.bar((2,), (s_means.at(2),), width: 0.6, fill: red.lighten(20%), label: [wasm]),
+    lq.plot((0,), (s_means.at(0),), yerr: (s_stddevs.at(0),), stroke: none, mark: none, color: black),
+    lq.plot((1,), (s_means.at(1),), yerr: (s_stddevs.at(1),), stroke: none, mark: none, color: black),
+    lq.plot((2,), (s_means.at(2),), yerr: (s_stddevs.at(2),), stroke: none, mark: none, color: black),
+  ),
+  caption: [Opstartstid for de tre varianter (gennemsnit ± stddev, n=10) (lavere er bedre)],
+) <fig-startup>
+
+På <fig-startup> ser vi at FFI næsten ikke tilføjer overhead til opstartstiden,
+mens WASM er 4,4 gange langsommere at starte. Dette er primært fordi `wasmtime`
+JIT-kompilerer modulet ved load.
+
+#let _l_noplugins = json("results/load_no-plugins.json")
+#let _l_ffi = json("results/load_ffi.json")
+#let _l_wasm = json("results/load_wasm.json")
+
+#let _lp(d, p) = d.latencyPercentiles.at(p) * 1000
+#let _bar_w = 0.25
+
+#figure(
+  lq.diagram(
+    width: 11cm,
+    height: 6cm,
+    yaxis: (label: [Svartid (ms)]),
+    xaxis: (
+      ticks: ((0, [p50]), (1, [p90]), (2, [p99])),
+      subticks: none,
+    ),
+    legend: (position: left + top),
+    lq.bar(
+      (0, 1, 2),
+      (_lp(_l_noplugins, "p50"), _lp(_l_noplugins, "p90"), _lp(_l_noplugins, "p99")),
+      offset: -_bar_w,
+      width: _bar_w,
+      fill: blue.lighten(20%),
+      label: [no-plugins],
+    ),
+    lq.bar(
+      (0, 1, 2),
+      (_lp(_l_ffi, "p50"), _lp(_l_ffi, "p90"), _lp(_l_ffi, "p99")),
+      offset: 0,
+      width: _bar_w,
+      fill: green.lighten(20%),
+      label: [ffi],
+    ),
+    lq.bar(
+      (0, 1, 2),
+      (_lp(_l_wasm, "p50"), _lp(_l_wasm, "p90"), _lp(_l_wasm, "p99")),
+      offset: _bar_w,
+      width: _bar_w,
+      fill: red.lighten(20%),
+      label: [wasm],
+    ),
+  ),
+  caption: [Svartidspercentiler (p50, p90, p99) under load (10 000 requests) (lavere er bedre)],
+) <fig-load-latency>
+
+#figure(
+  lq.diagram(
+    width: 10cm,
+    height: 6cm,
+    yaxis: (label: [Requests/sek]),
+    xaxis: (
+      ticks: ((0, [no-plugins]), (1, [ffi]), (2, [wasm])),
+      subticks: none,
+    ),
+    lq.bar((0,), (_l_noplugins.rps.mean,), width: 0.6, fill: blue.lighten(20%)),
+    lq.bar((1,), (_l_ffi.rps.mean,), width: 0.6, fill: green.lighten(20%)),
+    lq.bar((2,), (_l_wasm.rps.mean,), width: 0.6, fill: red.lighten(20%)),
+    lq.plot((0,), (_l_noplugins.rps.mean,), yerr: (_l_noplugins.rps.stddev,), stroke: none, mark: none, color: black),
+    lq.plot((1,), (_l_ffi.rps.mean,), yerr: (_l_ffi.rps.stddev,), stroke: none, mark: none, color: black),
+    lq.plot((2,), (_l_wasm.rps.mean,), yerr: (_l_wasm.rps.stddev,), stroke: none, mark: none, color: black),
+  ),
+  caption: [Gennemsnitlig requests/sek under load (gennemsnit ± stddev) (højere er bedre)],
+) <fig-load-rps>
+
+På <fig-load-rps> ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
+`WASM` sammenlignet med baseline. Der er ~#calc.round(37.9-28.8)%-point forskel
+på `FFI` og `WASM`.
+
+#let _mem_raw = read("results/memory_peak.txt")
+#let _mem_lines = _mem_raw.trim().split("\n")
+#let _mem_val(line) = float(
+  line.split(regex("\s+")).filter(p => p != "").at(-2),
+)
+#let mem_noplugins_mb = _mem_val(_mem_lines.at(0)) / 1024
+#let mem_ffi_mb = _mem_val(_mem_lines.at(1)) / 1024
+#let mem_wasm_mb = _mem_val(_mem_lines.at(2)) / 1024
+
+#figure(
+  lq.diagram(
+    width: 10cm,
+    height: 6cm,
+    yaxis: (label: [Hukommelsesforbrug (MB)]),
+    xaxis: (
+      ticks: ((0, [no-plugins]), (1, [ffi]), (2, [wasm])),
+      subticks: none,
+    ),
+    lq.bar((0,), (mem_noplugins_mb,), width: 0.6, fill: blue.lighten(20%)),
+    lq.bar((1,), (mem_ffi_mb,), width: 0.6, fill: green.lighten(20%)),
+    lq.bar((2,), (mem_wasm_mb,), width: 0.6, fill: red.lighten(20%)),
+  ),
+  caption: [Peak RSS-hukommelsesforbrug for de tre varianter (lavere er bedre)],
+) <fig-memory>
+
+Hukommelsesforbruget er marginalt for FFI (+564 kB), men markant større for
+WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget.
 
 = Konklusion
 
@@ -229,7 +423,7 @@ destination.
 // - En URL alene er ikke nok
 //
 // > Referencer skal vise, hvor jeres teori og faglige viden kommer fra. Det er
-// > ikke nok at samle links til sidst. IO skal også genvise til kilderne i teskten,
+// > ikke nok at samle links til sidst. I skal også genvise til kilderne i teskten,
 // > når I bruger teori, definitioner eller dokumentation.
 
 #bibliography("bib.yaml", title: none, style: "ieee", full: true)

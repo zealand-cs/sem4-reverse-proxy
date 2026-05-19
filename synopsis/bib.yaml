@@ -94,3 +94,31 @@ rust-lang-docs-traits:
   parent:
     type: web
     title: The Rust Programming Language
+
+hyperfine-github:
+    type: web
+    title: hyperfine CLI
+    url:
+        value: https://github.com/sharkdp/hyperfine
+        date: 2026-05-19
+
+oha-github:
+    type: web
+    title: Ohayou
+    url:
+        value: https://github.com/hatoo/oha
+        date: 2026-05-19
+
+lilaq-homepage:
+    type: web
+    title: Lilaq - Advanced data visualization in Typst
+    url:
+        value: https://lilaq.org/
+        date: 2026-05-19
+
+typst-app:
+    type: web
+    title: Typst - The new foundation for documents
+    url:
+        value: https://typst.app/
+        date: 2026-05-19
