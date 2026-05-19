@@ -40,7 +40,7 @@ async fn main() {
     let mut exts = Extensions::new();
     if let Some(ext_cfg) = cfg.extensions {
         for ext in ext_cfg.extensions {
-            let result = match ext.kind {
+            let result: Result<(), extensions::LoadError> = match ext.kind {
                 #[cfg(feature = "ffi")]
                 ExtensionKind::Ffi => exts.load_ffi(&ext.file),
                 #[cfg(feature = "wasm")]

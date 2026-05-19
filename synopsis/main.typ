@@ -140,8 +140,8 @@ enheden reverse proxyen kører på, har HTTP adgang til destinationen. Udvidelse
 vil kunne forbinde på forskellige hooks applikationen kalder igennem applikationens
 levetid. Reverse proxyen bliver udviklet så `WASM` og `FFI` kan slås til og fra via
 feature flags @rust-lang-docs-features, så selve koden for hver af måderne at loade
-udvidelser på slet ikke bliver kompileret med i projektet. Det sikrer at den ene
-implementation ikke påvirker den anden. Begge implementationer kører dog over samme
+udvidelser på, slet ikke bliver kompileret. Det sikrer at den ene implementation ikke
+påvirker den anden under tests. Begge implementationer kører dog over samme
 trait @rust-lang-docs-traits hvilket gør at applikationen stadig forholder sig
 til én måde at kalde extensionsne på.
 
@@ -165,7 +165,8 @@ den der implementerer craten skal bruge minimalt `unsafe` kode @docs-wasm-time.
 // > hvornår I vil kode. I skal også planlægge teori, praktisk arbejde, test,
 // > analyse, konklusion, reflektion og forberedelse til den mundtlige eksamen.
 
-Her er en tabel med estimeret tid per opgave.
+Her er en tabel med estimeret tid per opgave. Opgaverne er skrevet i en estimeret
+rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udført.
 
 #table(
   columns: (1fr, auto),
@@ -189,6 +190,10 @@ Her er en tabel med estimeret tid per opgave.
 //
 // > Her skal I ikke bare vise kode, screenshots eller tabeller. I skal forklare,
 // > hvad arbejdet viser, og hvordan det hjælper jer med at svare på problemformuleringen.
+
+Det første der blev udviklet var selve config parsing og reverse proxyen. Det er
+i bund og grund rigtig simpelt, da den kun forwarder enhver request til en anden
+destination.
 
 = Konklusion
 

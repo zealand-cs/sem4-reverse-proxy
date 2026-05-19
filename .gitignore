@@ -11,3 +11,6 @@
 
 # Rust
 target/
+
+# Benchmark
+results/

@@ -63,6 +63,11 @@
               # Docs
               mdbook
 
+              # Benchmarking
+              hyperfine
+              oha
+              time
+
               # Misc
               openssl
               pkg-config
