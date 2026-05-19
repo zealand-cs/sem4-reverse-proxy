@@ -28,6 +28,7 @@ run_task = { name = ["run-demo-server", "run-demo-proxy"], parallel = true }
 [tasks.bench-build]
 dependencies = ["build-log-ffi", "build-log-wasm"]
 script = '''
+mkdir -p results
 cargo build --release -p demo-server
 cargo build --release -p reverse-proxy --no-default-features \
   --target-dir target/bench/no-plugins
@@ -41,7 +42,6 @@ cargo build --release -p reverse-proxy --no-default-features --features wasm \
 workspace = false
 dependencies = ["bench-build"]
 script = '''
-mkdir -p results
 echo "Measuring startup time (time-to-first-byte)..."
 
 ./target/release/demo-server &
@@ -59,43 +59,15 @@ done
 exit 0
 '''
 
-[tasks.bench-load]
+[tasks.bench-throughput]
 workspace = false
 dependencies = ["bench-build"]
 script = '''
-mkdir -p results
-
-./target/release/demo-server &
-DEMO_PID=$!
-trap 'kill ${PROXY_PID:-} $DEMO_PID 2>/dev/null || true; wait $DEMO_PID 2>/dev/null || true' EXIT
-sleep 0.2
-
-for cfg in no-plugins ffi wasm; do
-  ./target/bench/${cfg}/release/reverse-proxy -c configs/bench-${cfg}.kdl -p 8080 > /dev/null 2>&1 &
-  PROXY_PID=$!
-  until curl -sf http://localhost:8080/demo > /dev/null 2>&1; do sleep 0.01; done
-
-  oha -n 10000 -c 50 --no-tui \
-    http://localhost:8080/demo \
-    > results/load_${cfg}.txt
-
-  kill $PROXY_PID 2>/dev/null || true
-  wait $PROXY_PID 2>/dev/null || true
-  sleep 0.1
-done
-exit 0
-'''
-
-[tasks.bench-memory]
-workspace = false
-dependencies = ["bench-build"]
-script = '''
-mkdir -p results
 rm -f results/memory_peak.txt
 
 ./target/release/demo-server &
 DEMO_PID=$!
-trap 'kill ${SAMPLER_PID:-} ${PROXY_PID:-} $DEMO_PID 2>/dev/null || true; wait $DEMO_PID 2>/dev/null || true' EXIT
+trap 'kill ${PROXY_PID:-} $DEMO_PID 2>/dev/null || true; wait $DEMO_PID 2>/dev/null || true' EXIT
 sleep 0.2
 
 for cfg in no-plugins ffi wasm; do
@@ -109,7 +81,7 @@ for cfg in no-plugins ffi wasm; do
   done) > results/memory_${cfg}_samples.txt &
   SAMPLER_PID=$!
 
-  oha -n 5000 -c 20 --no-tui http://localhost:8080/demo > /dev/null
+  oha -n 10000 -c 50 --no-tui http://localhost:8080/demo > results/load_${cfg}.txt
 
   kill $SAMPLER_PID 2>/dev/null || true
   kill $PROXY_PID 2>/dev/null || true
@@ -124,7 +96,7 @@ exit 0
 
 [tasks.bench-all]
 workspace = false
-dependencies = ["bench-startup", "bench-load", "bench-memory"]
+dependencies = ["bench-startup", "bench-throughput"]
 script = '''
 echo ""
 echo "=== Benchmark results written to results/ ==="
