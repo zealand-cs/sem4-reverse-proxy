@@ -258,7 +258,7 @@ Fra Linux man pages, omkring `dlclose`:
        the process."
 
 For os betyder dette at selvom vi har fået referencerne til vores symboler i extensionen,
-og er Rust compiler ikke brokker sig, kan vi altså ikke antage at symbolerne stadig
+og at Rust's compiler ikke brokker sig, kan vi altså ikke antage at symbolerne stadig
 eksisterer, efter at `Drop`-traiten bliver kaldt, hvilket den gør når `Library` ryger
 ud af gyldigt scope @rust-drop-trait.
 
