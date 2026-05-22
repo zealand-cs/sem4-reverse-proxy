@@ -220,7 +220,7 @@ og `hyper` kommer til at håndtere HTTP. Feature flags @rust-lang-docs-features 
 for at `WASM`- og `FFI`-koden kompileres når de skal bruges. Dette sikrer at de
 to implementationer ikke påvirker hinanden på nogen måde under tests og benchmarking.
 
-== Extension interface
+== Extension interface <extension-trait>
 
 For at både `FFI` og `WASM` bliver brugt på akkurat samme måde i proxyens kode,
 implementeres begge gennem et `Extension` trait @rust-lang-docs-traits. Traiten
@@ -240,6 +240,38 @@ også betyde at man kan skrive ekstensions i andre sprog der har MessagePack imp
 
 Runtime-performance ville evt. kunne forbedres ved at bruge en custom protokol istedet.
 Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige fod.
+
+== FFI implementering
+
+Filen `src/extensions/ffi.rs` indeholder ca. 200 linjer kode og er alt kode specifik
+til implementering af FFI. Filen beskriver primært structen `FfiExtension` der
+implementerer `Extension` trait. `FfiExtension` indeholder bl.a. vores `Library` fra
+`libloading` som er, ifølge dokumentationen, "et loaded dynamisk library". Selvom
+denne property ikke bliver brugt i koden er det nødvendigt at opbevare den, da `Library`
+implementerer `Drop`-traiten der kalder `dlclose`, hvilket er en funktion implementeret
+typisk i styresystemet, der unloader et dynamic library @dlclose-linux-man.
+Fra Linux man pages, omkring `dlclose`: 
+
+       "Once a symbol table handle has been closed [with `dldrop`], an application should
+       assume that any symbols (function identifiers and data object
+       identifiers) made visible using handle, are no longer available to
+       the process."
+
+For os betyder dette at selvom vi har fået referencerne til vores symboler i extensionen,
+og er Rust compiler ikke brokker sig, kan vi altså ikke antage at symbolerne stadig
+eksisterer, efter at `Drop`-traiten bliver kaldt, hvilket den gør når `Library` ryger
+ud af gyldigt scope @rust-drop-trait.
+
+Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
+symboler i vores extension for specifikt FFI implementationen og sørger også for at 
+applikationen har Rust-typer at arbejde med, i stedet for rå `C` typer @extension-trait.
+
+// TODO Uddyb mere hvis nødvendigt
+
+== WASM implementering
+
+Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og er alt kode specifikt
+til implementering af WASM.
 
 == Test-extensions
 

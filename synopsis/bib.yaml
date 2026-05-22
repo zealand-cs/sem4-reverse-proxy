@@ -122,3 +122,18 @@ typst-app:
     url:
         value: https://typst.app/
         date: 2026-05-19
+
+dlclose-linux-man:
+    type: web
+    title: dlclose(3p) — Linux manual page
+    url:
+        value: https://www.man7.org/linux/man-pages/man3/dlclose.3p.html
+        date: 2026-05-22
+    date: 2017
+
+rust-drop-trait:
+    type: web
+    title: Trait `Drop`
+    url:
+        value: https://doc.rust-lang.org/std/ops/trait.Drop.html
+        date: 2026-05-22
