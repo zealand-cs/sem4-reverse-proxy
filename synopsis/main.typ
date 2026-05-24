@@ -538,7 +538,7 @@ bottlenecks, da man skal finde "lowest common denominator", altså kan den ene i
 stadig godt være begrænset af den anden ved dybere analyse.
 
 
-Disse svar delkonklusioner hjælper os til at besvare den overordnede problemformulering:
+Disse delkonklusioner hjælper os til at besvare den overordnede problemformulering:
 
 Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidelser
 via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
@@ -573,8 +573,7 @@ til diverse applikationer, men de er to vidt forskellige teknologier. `FFI` er
 en mekanisme der gør at forskellige programmeringssprog kan tale sammen @ffi-wiki,
 hvorimod `WASM` er en åben standard der beskriver et "portable binary code" format
 og et tilsvarende tekst format for eksekverbare programmer, der er designet til
-at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki. 
-
+at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki.  
 = Referencer
 
 // - Liste alle kilder korrekt
