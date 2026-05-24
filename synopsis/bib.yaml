@@ -164,3 +164,10 @@ reverse-proxy-wiki:
     url:
         value: https://en.wikipedia.org/wiki/Reverse_proxy
         date: 2026-05-24
+
+cargo-make-github:
+    type: web
+    title: cargo-make
+    url:
+        value: https://github.com/sagiegurari/cargo-make
+        date: 2026-05-25

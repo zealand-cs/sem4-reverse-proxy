@@ -18,7 +18,7 @@
 #show: synopsis.with(
   author: "William K. G. Jelgren",
   email: "wij001@edu.zealand.dk",
-  title: "Modulær reverse proxy med WASM og FFI i Rust",
+  title: "Modulær reverse proxy med FFI og WASM i Rust",
   abstract: none,
   total-characters: total-characters,
 )
@@ -137,18 +137,18 @@ på udvidelse af software.
 // > ikke skarpe nok.
 
 Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidelser
-via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
+via `FFI` og `WASM`, og hvordan adskiller de to tilgange sig i forhold til implementering,
 udviklingskompleksitet, performance og ressourceforbrug?
 
 Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformuleringen:
 
 1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis WASM og FFI?
 
-2. Hvilke forskelle er der mellem `WASM` og `FFI` i forhold til kodekompleksitet,
+2. Hvilke forskelle er der mellem `FFI` og `WASM` i forhold til kodekompleksitet,
   læsbarhed og udviklingsoplevelse?
 
-3. Hvordan adskiller WASM- og FFI-baserede udvidelser sig i forhold til svartid,
-  througput og hukommelsesforbrug?
+3. Hvordan adskiller `FFI`- og `WASM`-baserede udvidelser sig i forhold til svartid,
+  throughput og hukommelsesforbrug?
 
 = Metode
 
@@ -163,37 +163,40 @@ Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformule
 // > bruges til at undersøge, hvad I måler eller observerer, og hvordan I bruger
 // > resultaterne til at svare på problemformuleringen.
 
-For finde svar på disse spørgsmål vil jeg først og fremmest udvikle en simpel reverse
-proxy. Den kommer ikke til at have samme omfang som eksisterende løsninger som Nginx,
-Caddy, Traefik osv. Reverse proxyen vil kun sørge for at viderstille et kald til
-en anden service. Det kan enten være lokalt eller på en anden server, så længe at
-enheden reverse proxyen kører på, har HTTP adgang til destinationen. Udvidelserne
-vil kunne forbinde på forskellige hooks applikationen kalder igennem applikationens
-levetid. Reverse proxyen bliver udviklet så `WASM` og `FFI` kan slås til og fra via
-feature flags @rust-lang-docs-features, så selve koden for hver af måderne at loade
-udvidelser på, slet ikke bliver kompileret. Det sikrer at den ene implementation ikke
-påvirker den anden under tests. Begge implementationer kører dog over samme
-trait @rust-lang-docs-traits hvilket gør at applikationen stadig forholder sig
-til én måde at kalde extensionsne på.
+For at finde svar på disse spørgsmål udvikles en simpel reverse proxy der muliggør
+en direkte sammenligning af de to tilgange. Den kommer ikke til at have samme omfang
+som eksisterende løsning som Nginx, Caddy og Traefik. Den kommer udelukkende til
+at viderestille HTTP-kald til en bagvedliggende service. Udvidelserne kobler sig
+på applikationen via hooks som applikationen kalder gennem sin levetid.
 
-FFI extensions bliver loadet med `libloading` @docs-libloading, der hjælper med at
-loade eksterne libraries dynamisk med mindre unsafe kode. `libloading` hjælper abstraherer
-nogle ting væk der gør det lettere at arbejde med.
+For at sikre at de to implementationer ikke påvirker hinanden under tests, bruges
+feature flags @rust-lang-docs-features til at slå `FFI` og `WASM`-koden til og fra
+ved kompilering. Begge implementeringer vil køre gennem ét trait @rust-lang-docs-traits,
+så applikationen forholder sig til én ensartet måde at kalde extensions på.
 
-WASM extensions bliver loadet og kørt med `wasmtime`, der er et api
-til at interagere med WASM moduler. `wasmtime` er designet til at
-den der implementerer craten skal bruge minimalt `unsafe` kode @docs-wasm-time.
+`FFI` extensions bliver indlæst med `libloading`, der giver en sikker
+og idiomatisk grænseflade til dynamisk indlæsning af native libraries @docs-libloading.
+Det abstraherer diverse platform-specifikke kald som `dlopen`/`LoadLibrary` væk
+og minimerer mængden af `unsafe` kode i projektet. `WASM` extensions indlæses, JIT-kompileres
+og eksekveres med `wasmtime` @docs-wasm-time, der ligeledes er designet til at minimere `unsafe`
+kode for den der implementerer traiten.
 
-Første underspørgsmål til problemformuleringen bliver besvaret i form at at selve
-applikationen bliver udviklet og køres. Det er også første krav for at kunne besvare
-underspørgsmål to og tre. Underspørgsmål 2 besvares efter applikationen er udviklet,
-ved at kigge på koden. Bl.a. kan antallet af linjer kode, keywords og andre indikatorer
-bruges til at tjekke hvad foreskellene på `WASM` og `FFI` for en udvikler er.
+For at sammenligningen er fair, vil to test-extensions, `log-ffi` og `log-wasm`
+udvikles, med identisk funktionalitet. Begge logger request-detaljer og viderestiller
+requesten uændret. Det betyder at eventuelle forskelle i benchmarks vil skyldes
+integrationerne af `FFI` og `WASM` i applikationen og ikke selve extension-koden.
 
-For at besvare underspørgsmål 3, bliver vi nødt til at benchmarke applikationen
-i forskellige stadier. Benchmarks der tester de forskellige parametre vil blive
-kørt ved en blanding af manuelt Bash scripts og programmer som hyperfine @hyperfine-github
-og oha @oha-github.
+Første underspørgsmål besvares i form af at applikationen udvikles og køres. Det
+er også en forudsætning for at svare på underspørgsmål to og tre. Underspørgsmål
+to besvares ved at analysere koden efter implementeringen er færdig. I denne analyse
+vil der blive brugt konkrete indikatorer som antal linjer, antal `unsafe` blokke
+og mængden af boilerplate til at vurdere forskellene i kodekompleksitet og
+udviklingsoplevelse.
+
+For at besvare underspørgsmål tre vil applikationen blive benchmarket i tre varianter:
+uden extensions, med `FFI` og med `WASM`. Benchmarks køres via `cargo make` @cargo-make-github
+med værktøjerne `hyperfine` @hyperfine-github til at måle opstartstider og `oha` @oha-github
+til svartider, throughput og hukommelsesforbrug.
 
 = Planlægning
 
