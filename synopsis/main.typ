@@ -91,26 +91,36 @@ to tilgange i forhold til implemnenteringskompleksitet, hastighed og hukommelses
 // - Hvorfor er det relevant for it-branchen, virksomheder eller brugere?
 // - Hvordan hænger emnet sammen med dit valgfag?
 //
-// > Motivation er ikke kun "jeg synes emnet er spændendeØ. I skal også forklare,
+// > Motivation er ikke kun "jeg synes emnet er spændende". I skal også forklare,
 // > hvorfor emnet er relevant fagligt. Det kan være i forhold til sikkerhed, performance,
 // > systemudvikling, Rust, netværk, embedded, web eller andre områder fra valgfaget.
 
-Dette projekt er interessant for mig da jeg synes det er interessant at se hvordan
-forskellige programmer/libraries kan snakke sammen lokalt på computeren med så lille
-et aftryk som muligt. Det skal gerne være nemt for udvikleren, men det skal i min
-mening ikke betyde at den computerkraft vi har til rådighed, skal misbruges så
-gralt som det gør i vores verden i dag.
+Jeg har længe interesseret mig for hvordan programmer og libraries kan kommunikere
+lokalt sammen med så lille et ressourceaftryk som muligt. Det skal også gerne være
+nemt for udvikleren at integrere med andet software, men dette skal ikke være
+på bekostning af den computerkraft vi har til rådighed.
 
-Udover det har jeg også en interesse for at kunne ændre funktionaliteten af programmer
-i form af uden at skulle rekompilere base-programmet. Dette kan være til stor fordel
-i flere situationer: lang rekompilering af det fulde program, proprietært software
-eller bekvemmelighed for brugeren.
+En måde at udvide et programs funktionalitet på, uden at rekompilere selve programmet,
+er ved brug af et plugin-system. Det kan have store fordele i flere forskellige situationer:
+når et program har lange kompileringstider, når kildekoden er proprietær eller for
+bekvemmeligheden af slutbrugeren.
 
-Fx kan nogle proprietære software udvides med kode som brugere skaber og danne
-"marketplaces", uden at hovedapplikationens source code er åben for brugerne. Dette
-kan åbne nogle forretningsmuligheder og/eller offloade udvikling fra virksomheden
-til brugerbasen istedet. Derfor er det også vigtigt at kunne integrere extensions
-sikkert, med acceptabel balance mellem udviklernes bekvemmelighed og effektiv software.
+Proprietære programmer kan ved brug af et sådant plugin-system udvides med brugerskabt
+kode og fx danne "marketplaces", uden at hovedapplikationens kildekode er åbent tilgængelig.
+Dette kan åbne forretningsmuligheder og offloade udvikling fra virksomheden til
+brugerbasen. Derfor er det også vigtigt at kunne integrere plugins sikkert, med en
+acceptabel balance mellem udviklernes bekvemmelighed og effektivt software.
+
+Rust er i denne sammenhæng et oplagt valg til at bygge en plugin-host, da sproget
+giver memory safety uden en garbage collector, hvilket gør det muligt at skrive
+præcis og forudsigelig kode, også når man arbejder tæt på operativsystemet som
+ved dynamisk indlæsning af ekstern kode.
+
+`FFI` og `WASM` ligger i to forskellige ender af et spektrum der består af tillid
+og sikkerhed. `FFI` giver direkte adgang til native kode med minimalt overhead,
+hvorimod `WASM` isolerer extensions i et sandboxet miljø på bekostning af ekstra
+kompleksitet. Dette gør dem interessante at sammenligne med hinanden med henblik
+på udvidelse af software.
 
 = Problemformulering
 
