@@ -148,7 +148,7 @@ Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformule
   læsbarhed og udviklingsoplevelse?
 
 3. Hvordan adskiller WASM- og FFI-baserede udvidelser sig i forhold til svartid,
-  CPU-forbrug og hukommelsesforbrug?
+  througput og hukommelsesforbrug?
 
 = Metode
 
