@@ -14,14 +14,15 @@
 )
 
 #show: word-count.with(counter: string-word-count, exclude: (raw,))
-
+#set text(lang: "da")
 #show: synopsis.with(
   author: "William K. G. Jelgren",
   email: "wij001@edu.zealand.dk",
   title: "Modulær reverse proxy med WASM og FFI i Rust",
   abstract: none,
   total-characters: total-characters,
-);
+)
+
 
 // ## Hvad er en synopsis?
 //
@@ -61,14 +62,27 @@
 // > detaljer her. Gem metode, resultater og konlusion til de senere afsnit.
 
 Udvidelse af software uden at skulle kende kildekoden kan være en stærk motivator
-for tredjeparter til at bruge netop dit projekt.
+for tredjeparter til at bruge netop dit projekt. Plugin-systemer er et meget velkendt
+fænomen i softwareverdene, fra Nginx-moduler til VS Code-udvidelser til Minecraft
+Servere, og hvordan disse implementeres bagved er ikke nødvendighvis triviel.
 
-I dette projekt vil der blive udviklet en reverse proxy i Rust, der understøtter
-udvidelser i form af WASM og FFI, for at undersøge forskellene på de to nærmere,
-i forhold til følgende parametre: implementering, hastighed og brug af hukommelse.
+En reverse proxy sidder foran én eller flere services og viderestiller indgående
+HTTP-kald fra klienten. Det er en meget central byggesten i moderne infrastruktur,
+og er et godt udgangspunkt for at undersøge hvordan et eksisterende system kan
+udvides @reverse-proxy-wiki.
 
-Selve programmet vil blive skrevet i Rust og det vil udvidelserne også, for nemt
-at kunne se forskellene på implementeringerne ift. kodemængde og læselighed.
+To udbredte teknologier til dette er `FFI` og `WASM`. `FFI` (Foreign Function Interface)
+gør det muligt at kalde funktioner i et eksternt, native library direkte, og på
+tværs af programmeringssprog @ffi-wiki. `WASM` (WebAssembly) er et åbent binært format, oprindeligt
+designet til brug i browsere, men bliver i dag også brugt server-side som et sandboxet
+miljø til eksekvering af eksterne moduler @wasm-wiki. Begge kan bruges til at loade
+og køre ekstern kode, men de adskiller sig i implementering, sikkerhed og ydelse.
+
+I dette projekt udvikles der en reverse proxy i Rust, der understøtter udvidelser
+via begge teknologier. Udvidelserne skrives ligeledes i Rust, så implementeringsforskellene
+ikke defineres af sproglige faktorer. Denne synopse unsersøegr og sammenligner de
+to tilgange i forhold til implemnenteringskompleksitet, hastighed og hukommelsesforbrug.
+
 
 = Motivation
 
@@ -276,7 +290,7 @@ implementerer `Drop`-traiten der kalder `dlclose` på Linux systemet, hvilket er
 en funktion implementeret i styresystemet, der unloader et dynamic library @dlclose-linux-man.
 Fra Linux man pages, omkring `dlclose`:
 
-"Once a symbol table handle has been closed [with `dldrop`], an application should
+"Once a symbol table handle has been closed [with `dlclose`], an application should
 assume that any symbols (function identifiers and data object
 identifiers) made visible using handle, are no longer available to
 the process."
@@ -444,7 +458,7 @@ JIT-kompilerer modulet ved load.
   caption: [Gennemsnitlig requests/sek under load (gennemsnit ± stddev) (højere er bedre)],
 ) <fig-load-rps>
 
-På <fig-load-rps> ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
+På @fig-load-rps ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
 `WASM` sammenlignet med baseline. Der er ~#calc.round(37.9 - 28.8)%-point forskel
 på `FFI` og `WASM`.
 
@@ -531,11 +545,18 @@ reverse proxyen der ikke indeholder nogen form for extensions.
 
 // TODO more explanation?
 
----
-
 Da `FFI` og `WASM` er implementeret gennem ét interface opstår der potentielt flere
 bottlenecks, da man skal finde "lowest common denominator", altså kan den ene implementation
-stadig godt være begrænset af den anden ved dybere analyse.
+stadig godt være begrænset af den anden ved dybere analyse. Et eksempel på dette
+er bl.a. brugen af MessagePack (`rmp_serde`) som er nødvendigt for denne `WASM` implementation,
+men ikke nødvendig for `FFI` integrationer hvor man simpelt kan læse rå pointers
+i stedet. Der er altså et unødvendigt sterilizerings-step i `FFI` integrationen
+der måske gør `FFI` langsommere. Dette kan også forklare den relativt store forskel
+på throughput mellem `FFI` og `no-plugins` som set på @fig-load-rps. Det ændrer
+dog ikke udfaldet for sammenligningen mellem `WASM` og `FFI` brugt som extensions
+da `FFI` stadig vinder alle benchmarks imod `WASM`.
+
+---
 
 
 Disse delkonklusioner hjælper os til at besvare den overordnede problemformulering:
@@ -544,7 +565,7 @@ Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidels
 via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
 udviklingskompleksitet, performance og ressourceforbrug?
 
-
+// TODO
 
 = Reflektion
 
@@ -573,8 +594,8 @@ til diverse applikationer, men de er to vidt forskellige teknologier. `FFI` er
 en mekanisme der gør at forskellige programmeringssprog kan tale sammen @ffi-wiki,
 hvorimod `WASM` er en åben standard der beskriver et "portable binary code" format
 og et tilsvarende tekst format for eksekverbare programmer, der er designet til
-at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki.  
-= Referencer
+at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki.
+
 
 // - Liste alle kilder korrekt
 // - Brug kilder aktivt i teksten
@@ -583,7 +604,7 @@ at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki
 // - En URL alene er ikke nok
 //
 // > Referencer skal vise, hvor jeres teori og faglige viden kommer fra. Det er
-// > ikke nok at samle links til sidst. I skal også genvise til kilderne i teskten,
+// > ikke nok at samle links til sidst. I skal også henvise til kilderne i teskten,
 // > når I bruger teori, definitioner eller dokumentation.
 
-#bibliography("bib.yaml", title: none, style: "ieee", full: true)
+#bibliography("bib.yaml", style: "ieee", full: true)
