@@ -1,0 +1,7 @@
+extensions {
+	"./target/release/liblog_ffi.so" kind=ffi
+}
+
+localhost {
+	proxy_pass "/demo" to="localhost:3060"
+}
