@@ -488,6 +488,62 @@ WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget
 // > bruge de resultater og observationer, I allerede har præsenteret, til at svare
 // > på problemformuleringen.
 
+Vi kan konkludere at selve reverse proxyen i sig selv, ikke er specielt advanceret
+at designe, men til gengæld opstår der udfordringer når eksisterende systemer skal
+udvides.
+
+1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis WASM og FFI?
+
+En reverse proxy kan udvides relativt hurtigt ved brug af eksisterende crates i
+Rust økosystemet. De essentielle crates der sørger for at selve reverse proxyen
+fungerer er: `tokio`, `hyper`, `http-body-util`, `hyper-util` og `bytes`.
+
+`libloading` hjælper med at læse FFI extensions og `wasmtime` læser, compilerer og
+eksekverer WASM moduler. Disse to crates bliver implementeret relativt minimalistisk
+i separate moduler, der er wired sammen med et fælles trait som reverse proxyen
+anvender. Noget af det første reverse proxyen gør når den starter, er at parse
+konfigurationen og derefter loade extensions der er defineret i samme konfiguration.
+
+Extensionsne kan "subscribe" på forskellige hooks som reverse proxyen kalder.
+Extensionsne kan gøre som de vil med de detaljer som reverse proxyen giver igennem
+hooken.
+
+2. Hvilke forskelle er der mellem `WASM` og `FFI` i forhold til kodekompleksitet,
+  læsbarhed og udviklingsoplevelse?
+
+Baseret på antallet af linjer kode (`WASM`: ca. 300, `FFI`: ca. 200), og komplexiteten
+som `wasmtime` dækker over, er `WASM` væsentligt mere kompliceret at implementere
+i nogen som helst applikationer end `FFI`. `WASM` har mere boilerplate end `FFI`,
+for at få en basal extension til at køre. Men dette er ikke uhørt, da `WASM` dækker
+over meget mere end `FFI`. `FFI` er et (relativt) simpelt kald til et ekstern library
+hvorimod bare at køre `WASM`-kode kræver en JIT-kompilering og en runtime, hvilket
+`wasmtime` sørger for.
+
+// TODO expand wasm after wasm section has been written
+
+3. Hvordan adskiller WASM- og FFI-baserede udvidelser sig i forhold til svartid,
+  CPU-forbrug og hukommelsesforbrug?
+
+Baseret på analysen og benchmarksne vinde `FFI` i alle tilfælde over `WASM`.
+`FFI` implementeringen start hurtigere, svarer hurtigere, større throughput og
+væsentligt mindre hukommelsesforbrug. `FFI` lægger side om side med barebones
+reverse proxyen der ikke indeholder nogen form for extensions.
+
+// TODO more explanation?
+
+---
+
+Da `FFI` og `WASM` er implementeret gennem ét interface opstår der potentielt flere
+bottlenecks, da man skal finde "lowest common denominator", altså kan den ene implementation
+stadig godt være begrænset af den anden ved dybere analyse.
+
+
+Disse svar delkonklusioner hjælper os til at besvare den overordnede problemformulering:
+
+Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidelser
+via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
+udviklingskompleksitet, performance og ressourceforbrug?
+
 
 
 = Reflektion
@@ -510,6 +566,14 @@ tid tillod, var problemformuleringen bred nok til at undersøge relevante emner 
 for faget. Min motivation for dette projekt blev også dækket og de tanker jeg fremhævede
 dér blev undersøgt tilstrækkeligt. Dette inkluderer bl.a. grøn omstilling ved at
 udnytte vores enheder til det fulde, at udvide programmer uden for dets egne rammer.
+
+En anden note er at `WASM` og `FFI` er to vidt forskellige tilgange og i dybden,
+næsten ikke sammenlignelige. Selvfølgelig kan begge to bruges til at lave udvidelser
+til diverse applikationer, men de er to vidt forskellige teknologier. `FFI` er
+en mekanisme der gør at forskellige programmeringssprog kan tale sammen @ffi-wiki,
+hvorimod `WASM` er en åben standard der beskriver et "portable binary code" format
+og et tilsvarende tekst format for eksekverbare programmer, der er designet til
+at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki. 
 
 = Referencer
 

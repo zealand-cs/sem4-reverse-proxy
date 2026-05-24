@@ -137,3 +137,23 @@ rust-drop-trait:
     url:
         value: https://doc.rust-lang.org/std/ops/trait.Drop.html
         date: 2026-05-22
+ffi-wiki:
+    type: web
+    title: Foreign Function Interface
+    url:
+      value: https://en.wikipedia.org/wiki/Foreign_function_interface
+      date: 2026-05-24
+
+wasm-wiki:
+    type: web
+    title: WebAssembly
+    url:
+        value: https://en.wikipedia.org/wiki/WebAssembly
+        date: 2026-05-24
+
+wasm-mozilla:
+    type: web
+    title: WebAssembly
+    url:
+        value: https://developer.mozilla.org/en-US/docs/WebAssembly
+        date: 2026-05-24
