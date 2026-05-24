@@ -13,7 +13,7 @@
     .len(),
 )
 
-#show: word-count.with(counter: string-word-count)
+#show: word-count.with(counter: string-word-count, exclude: (raw,))
 
 #show: synopsis.with(
   author: "William K. G. Jelgren",
@@ -91,6 +91,12 @@ Udover det har jeg også en interesse for at kunne ændre funktionaliteten af pr
 i form af uden at skulle rekompilere base-programmet. Dette kan være til stor fordel
 i flere situationer: lang rekompilering af det fulde program, proprietært software
 eller bekvemmelighed for brugeren.
+
+Fx kan nogle proprietære software udvides med kode som brugere skaber og danne
+"marketplaces", uden at hovedapplikationens source code er åben for brugerne. Dette
+kan åbne nogle forretningsmuligheder og/eller offloade udvikling fra virksomheden
+til brugerbasen istedet. Derfor er det også vigtigt at kunne integrere extensions
+sikkert, med acceptabel balance mellem udviklernes bekvemmelighed og effektiv software.
 
 = Problemformulering
 
@@ -245,33 +251,75 @@ Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige f
 
 Filen `src/extensions/ffi.rs` indeholder ca. 200 linjer kode og er alt kode specifik
 til implementering af FFI. Filen beskriver primært structen `FfiExtension` der
-implementerer `Extension` trait. `FfiExtension` indeholder bl.a. vores `Library` fra
+implementerer `Extension` trait.
+
+```rust
+#[allow(dead_code)]
+pub struct FfiExtension {
+    _lib: Library,
+    name: String,
+    version: String,
+    capability_mask: u32,
+    fn_on_load: unsafe extern "C" fn(),
+    fn_on_unload: unsafe extern "C" fn(),
+    fn_on_request: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+    fn_on_response: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+    fn_on_error: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+    fn_free: unsafe extern "C" fn(*mut u8, u32),
+}
+```
+
+`FfiExtension` indeholder bl.a. vores `Library` fra
 `libloading` som er, ifølge dokumentationen, "et loaded dynamisk library". Selvom
 denne property ikke bliver brugt i koden er det nødvendigt at opbevare den, da `Library`
-implementerer `Drop`-traiten der kalder `dlclose`, hvilket er en funktion implementeret
-typisk i styresystemet, der unloader et dynamic library @dlclose-linux-man.
-Fra Linux man pages, omkring `dlclose`: 
+implementerer `Drop`-traiten der kalder `dlclose` på Linux systemet, hvilket er
+en funktion implementeret i styresystemet, der unloader et dynamic library @dlclose-linux-man.
+Fra Linux man pages, omkring `dlclose`:
 
-       "Once a symbol table handle has been closed [with `dldrop`], an application should
-       assume that any symbols (function identifiers and data object
-       identifiers) made visible using handle, are no longer available to
-       the process."
+"Once a symbol table handle has been closed [with `dldrop`], an application should
+assume that any symbols (function identifiers and data object
+identifiers) made visible using handle, are no longer available to
+the process."
 
 For os betyder dette at selvom vi har fået referencerne til vores symboler i extensionen,
 og at Rust's compiler ikke brokker sig, kan vi altså ikke antage at symbolerne stadig
 eksisterer, efter at `Drop`-traiten bliver kaldt, hvilket den gør når `Library` ryger
 ud af gyldigt scope @rust-drop-trait.
 
-Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
-symboler i vores extension for specifikt FFI implementationen og sørger også for at 
-applikationen har Rust-typer at arbejde med, i stedet for rå `C` typer @extension-trait.
+Data fra hooks der bliver kaldt i en extension, bliver returneret i form af `FfiPluginBuffer`.
+I `C` er variable længder af data (fx `string`) beskrevet med en pointer og en længde.
+Det samme gør vi her for at læse bytes fra en specifik lokation i hukommelsen. Det
+bytes der ligger på denne lokation i hukommelsen bliver læst og derefter decoded,
+som defineret i `protocol`. Dette bliver offloadet til `rmp_serde` og er derfor
+ikke i dette projekts scope at implementere.
 
-// TODO Uddyb mere hvis nødvendigt
+```rust
+#[repr(C)]
+pub struct FfiPluginBuffer {
+    pub ptr: *mut u8,
+    pub len: u32,
+}
+```
+
+Efter af denne buffer er blevet læst og decoded til en Rust struct der er nemmere
+at arbejde med, skal denne buffer frigøres i hukommelsen så vi ikke får et memory
+leak. Det gør vi med `fn_free` (defineret i `FfiExtension`), hvilket er en funktion der skal
+implementeres i alle ffi extensions. `fn_free` sørger så for at frigøre hukommelsen der
+er blevet allokeret for `FfiPluginBuffer`. Vi arbejder altså med to forskellige
+grader af tillid, at applikationen anmoder om at frigøre hukommelsen korrekt og
+at extensionen så faktisk frigører hukommelsen korrekt.
+
+Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
+symboler i vores extension for specifikt FFI implementationen og sørger også for at
+applikationen har Rust-typer at arbejde med, i stedet for rå `C` typer @extension-trait.
+Den sørger også for at kalde `fn_free` på det rigtige tidspunkt.
 
 == WASM implementering
 
 Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og er alt kode specifikt
 til implementering af WASM.
+
+// TODO
 
 == Test-extensions
 
@@ -280,19 +328,26 @@ identisk funktionalitet blevet skrevet: `log-ffi` og `log-wasm` hhv. `FFI` og `W
 som target. Begge extensions registrerer `ON_REQUEST`, deserialiserer konteksten
 og printer diverse detaljer om requesten i terminalen, og returnerer en `Continue`.
 
-Målet med disse to plugins er ikke at teste performance af WASM og FFI selv, men
-i stedet forbindelserne mellem hovedapplikationen og extensionsne og se hvor meget
-overhead dette bringer. Derfor er selve extensionsne meget simple uden nogen funktionalitet
-der faktisk er brugbar.
+Målet med disse to plugins er ikke at teste performance af WASM kode og FFI kode selv,
+men i stedet forbindelserne mellem hovedapplikationen og extensionsne og se hvor meget
+overhead dette bringer. Derfor er selve extensionsne meget simple uden nogen brugbar
+funktionalitet for en slutbruger, da loggingen ikke kan customizes, skrives til filer
+osv.
 
 == Benchmarks
 
 Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha`. Benchmarks
-kan blive kørt ved at køre ```bash cargo make bench-all```. Alle resultater vil
+kan blive kørt ved at køre `cargo make bench-all`. Alle resultater vil
 blive skrevet til `results/` mappen i roden af repositoriet. Disse resultater vil
 hjælpe med at besvare underspørgsmål 3. Herunder vil resultaterne vises i form af
 grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst`
-@typst-app.
+@typst-app. #footnote[
+  Alle benchmarks er kørt på en bærbar
+  laptop (ASUS ZenBook model UM431D fra 2020) med Linux (NixOS). MacOS og Windows
+  (og dermed WSL) er ikke testet og jeg kan derfor ikke garantere at resultaterne
+  kan repoduceres på disse styresystemer. På trods af dette er resultaterne så
+  klare på dette system at jeg antager der vil være samme tendens på andre systemer.
+]
 
 #let _s_noplugins = json("results/startup_no-plugins.json").results.at(0)
 #let _s_ffi = json("results/startup_ffi.json").results.at(0)
@@ -390,7 +445,7 @@ JIT-kompilerer modulet ved load.
 ) <fig-load-rps>
 
 På <fig-load-rps> ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
-`WASM` sammenlignet med baseline. Der er ~#calc.round(37.9-28.8)%-point forskel
+`WASM` sammenlignet med baseline. Der er ~#calc.round(37.9 - 28.8)%-point forskel
 på `FFI` og `WASM`.
 
 #let _mem_raw = read("results/memory_peak.txt")
@@ -433,6 +488,8 @@ WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget
 // > bruge de resultater og observationer, I allerede har præsenteret, til at svare
 // > på problemformuleringen.
 
+
+
 = Reflektion
 
 // - Var problemformuleringen skarp nok?
@@ -445,6 +502,14 @@ WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget
 // > I reflektionen vurderer I jeres egen proces, metode og afgrænsning. Det er
 // > helt fint at skrive, hvad der ikke virkede, hvis I også forklarer, hvad I har
 // > lært af det.
+
+Problemformuleringen dækkede godt over projektet, men det er et rigtig stort emne.
+`WASM` og `FFI` integrationer er en stor verden hver for sig, så at samle dem i
+ét projekt kunne godt være udfordrende. På trods af at scopet var større end projektets
+tid tillod, var problemformuleringen bred nok til at undersøge relevante emner inden
+for faget. Min motivation for dette projekt blev også dækket og de tanker jeg fremhævede
+dér blev undersøgt tilstrækkeligt. Dette inkluderer bl.a. grøn omstilling ved at
+udnytte vores enheder til det fulde, at udvide programmer uden for dets egne rammer.
 
 = Referencer
 
