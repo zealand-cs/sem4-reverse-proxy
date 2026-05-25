@@ -67,12 +67,12 @@
 
 Udvidelse af software uden at skulle kende kildekoden kan være en stærk motivator
 for tredjeparter til at bruge netop dit projekt. Plugin-systemer er et meget velkendt
-fænomen i softwareverdene, fra Nginx-moduler til VS Code-udvidelser til Minecraft
-Servere, og hvordan disse implementeres bagved er ikke nødvendighvis triviel.
+fænomen i softwareverdenen, fra Nginx-moduler til VS Code-udvidelser til Minecraft
+servere, og hvordan disse implementeres bagved er ikke nødvendighvis triviel.
 
 En reverse proxy sidder foran én eller flere services og viderestiller indgående
 HTTP-kald fra klienten. Det er en meget central byggesten i moderne infrastruktur,
-og er et godt udgangspunkt for at undersøge hvordan et eksisterende system kan
+og er et godt udgangspunkt for at undersøge hvordan en applikation kan
 udvides @reverse-proxy-wiki.
 
 To udbredte teknologier til dette er `FFI` og `WASM`. `FFI` (Foreign Function Interface)
@@ -84,8 +84,8 @@ og køre ekstern kode, men de adskiller sig i implementering, sikkerhed og ydels
 
 I dette projekt udvikles der en reverse proxy i Rust, der understøtter udvidelser
 via begge teknologier. Udvidelserne skrives ligeledes i Rust, så implementeringsforskellene
-ikke defineres af sproglige faktorer. Denne synopse unsersøegr og sammenligner de
-to tilgange i forhold til implemnenteringskompleksitet, hastighed og hukommelsesforbrug.
+ikke defineres af sproglige faktorer. Denne synopse unsersøger og sammenligner de
+to tilgange i forhold til implementeringskompleksitet, hastighed og hukommelsesforbrug.
 
 
 = Motivation
@@ -169,7 +169,7 @@ Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformule
 
 For at finde svar på disse spørgsmål udvikles en simpel reverse proxy der muliggør
 en direkte sammenligning af de to tilgange. Den kommer ikke til at have samme omfang
-som eksisterende løsning som Nginx, Caddy og Traefik. Den kommer udelukkende til
+som eksisterende løsninger som Nginx, Caddy og Traefik. Den kommer udelukkende til
 at viderestille HTTP-kald til en bagvedliggende service. Udvidelserne kobler sig
 på applikationen via hooks som applikationen kalder gennem sin levetid.
 
@@ -216,6 +216,10 @@ til svartider, throughput og hukommelsesforbrug.
 
 Her er en tabel med estimeret tid per opgave. Opgaverne er skrevet i en estimeret
 rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udført.
+
+// TODO udfyld hele dette afsnit
+
+*Ikke komplet endnu*
 
 #table(
   columns: (1fr, auto, auto),
