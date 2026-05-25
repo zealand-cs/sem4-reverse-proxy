@@ -16,19 +16,20 @@
 ) = {
   set page(paper: "a4", margin: 30mm)
 
-  if title != none {
-    align(center + top, text(size: 28pt, weight: 700, title))
-  }
 
-  if author != none {
-    align(center + horizon, {
+  align(center + horizon, {
+    if title != none {
       line(length: 30mm, stroke: 0.5pt)
       v(4mm)
+      text(size: 28pt, weight: 700, title)
+      v(4mm)
+      line(length: 30mm, stroke: 0.5pt)
+    }
+    if author != none {
+      v(16mm)
       text(size: 13pt, weight: 400, [Af #author])
-      v(4mm)
-      line(length: 30mm, stroke: 0.5pt)
-    })
-  }
+    }
+  })
 
   let meta = ()
   if email != none { meta.push((label: "E-mail", value: email)) }

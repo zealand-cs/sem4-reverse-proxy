@@ -15,7 +15,7 @@
 
 #show: word-count.with(counter: string-word-count, exclude: (raw,))
 #set text(lang: "da")
-#let normalsider = context (calc.round(state("wordometer").final().characters / 2400, digits: 1))
+#let normalsider = context (str(calc.round(state("wordometer").final().characters / 2400, digits: 1)).replace(".", ","))
 #show: synopsis.with(
   author: "William K. G. Jelgren",
   email: "wij001@edu.zealand.dk",
@@ -401,7 +401,7 @@ til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
       pub len: u32,
   }
   ```,
-  caption: "FfiPluginBuffer struct",
+  caption: [`FfiPluginBuffer` struct],
 ) <rust-ffi-plugin-buffer>
 
 Efter af denne buffer er blevet læst og decoded til en Rust struct der er nemmere
