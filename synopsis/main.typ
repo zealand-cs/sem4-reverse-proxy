@@ -247,7 +247,7 @@ rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udfør
 // > Her skal I ikke bare vise kode, screenshots eller tabeller. I skal forklare,
 // > hvad arbejdet viser, og hvordan det hjælper jer med at svare på problemformuleringen.
 
-For at kunne implementerer noget som helst med ekstensions må grundstenene på plads
+For at kunne implementere noget som helst med ekstensions må grundstenene på plads
 først. Det omhandler parsing af konfiguration, sætte en async-runtime op og så
 reelt route requests til destinationer.
 
@@ -278,8 +278,6 @@ også betyde at man kan skrive ekstensions i andre sprog der har MessagePack imp
 Runtime-performance ville evt. kunne forbedres ved at bruge en custom protokol istedet.
 Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige fod.
 
-// TODO describe the following figures
-
 #figure(
   ```rust
   pub trait Extension: Send + Sync {
@@ -309,6 +307,13 @@ Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige f
   caption: [`Extension` trait (kommentarer fjernet)],
 ) <rust-extension-trait>
 
+@rust-extension-trait viser selve `Extension` trait-definitionen. De to metoder
+`name` og `version` returnerer simpel metadata om extensionen. `capabilities` returnerer
+en bitmask der angiver hvilke hooks extensionen abonnerer på, og `has_capability` er
+en hjælpemetode der bl.a. hjælper proxyen til at undgå unødvendige kald til extensions
+der ikke lytter på en specifik hook. Traiten implementerer automatisk `has_capability`,
+som set på kode-stykket.
+
 #figure(
   ```rust
   pub enum HookResult {
@@ -327,6 +332,12 @@ Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige f
   caption: [`HookResult` enum (kommentarer fjernet)],
 ) <rust-hook-result-enum>
 
+HookResult-enumen (@rust-hook-result-enum) bruges som returværdi fra alle hook-metoder.
+`Continue` signalerer at requesten/responsen skal fortsætte som normalt, evt. med
+ændrede headers eller en body-override. `Replace` giver extensionen mulighed for at
+returnere et helt nyt svar, mens `Error` indikerer at extensionen fejlede og at
+proxyen skal håndtere dette.
+
 #figure(
   ```rust
   pub mod caps {
@@ -341,6 +352,18 @@ Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige f
   ```,
   caption: [`caps` modul med bitmasks der beskriver capabilities en extension understøtter],
 ) <rust-caps-module>
+
+Bitmask-konstanterne i `caps`-modulet (@rust-caps-module) bruges til at komponere
+capabilities for en extension. En extension der kun vil reagere på requests sætter
+`ON_REQUEST`, mens en extension der vil reagere på både requests og responses sætter
+`ON_REQUEST | ON_RESPONSE`. `has` bruges internt i `has_capability` til at teste
+om en given capability er sat i bitmasken.
+
+== Simpel reverse proxy
+
+// TODO
+
+*Ikke skrevet endnu*
 
 == FFI implementering
 
