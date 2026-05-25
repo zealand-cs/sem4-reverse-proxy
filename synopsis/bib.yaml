@@ -178,3 +178,10 @@ rust-lang-send-and-sync:
     url:
         value: https://doc.rust-lang.org/nomicon/send-and-sync.html
         date: 2026-05-25
+
+wasm-component-model:
+    type: web
+    title: The WebAssembly Component Model
+    url:
+        value: https://component-model.bytecodealliance.org/
+        date: 2026-05-25
