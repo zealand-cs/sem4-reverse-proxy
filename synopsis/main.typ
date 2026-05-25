@@ -489,7 +489,7 @@ det. I stedet foregår dette kald i nogle trin:
 2. Skriv til den allokerede adresse ved at kopiere den serialiserede kontekst buffer fra host-applikationens
   hukommelse ind i `WASM`-modulets hukommelse.
 
-3. Kald hook-funktionen @wasm-i64-return.
+3. Kald hook-funktionen med `(ptr, len)`. Resultatet returneres som én `i64` @wasm-i64-return.
 
 4. Læs resultat-bytes ud af `WASM`-modulets hukommelse.
 
@@ -505,7 +505,7 @@ indeholder ikke nogen runtime `unsafe`-kode da `wasmtime` kun eksponerer et fuld
 og al kommunikation med `WASM`-modulet sker kun gennem `wasmtime`. Derimod indeholder
 `FFI`-implementeringen ca. otte runtime `unsafe` blokke. Dette er dog ikke nødvendigvis
 en svaghed ved `FFI`-implementeringen, da det er uungåeligt når man arbejder med
-native kode. Dette viser dog at `WASM`'s sandboxing også afspejles i selve kode.
+native kode. Dette viser dog at `WASM`'s sandboxing også afspejles i selve koden.
 
 == Test-extensions
 
