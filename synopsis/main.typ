@@ -28,8 +28,6 @@
   programme: [Datamatiker],
 )
 
-#total-characters.fields()
-
 // ## Hvad er en synopsis?
 //
 // - Kort skriftligt produkt
@@ -422,7 +420,7 @@ Den sørger også for at kalde `fn_free` på det rigtige tidspunkt.
 Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og indeholder alt
 kode specifikt til implementering af WASM.
 
-Nogle af ideerne bag `WASM` implementeringen minder `FFI`s implementering, men der er stadig
+Nogle af ideerne bag `WASM` implementeringen minder om `FFI`-implementeringen, men der er stadig
 væsentlige forskelle. Fx tillader `WASM` at give adgang til en begrænset del af
 værtens hukommelse, hvad `wasmtime` har kaldt en store, der fx kan håndtere adgange
 til databaser eller anden state en applikation måttet have brug for at eksponere
@@ -449,7 +447,14 @@ og `WasmPlugin` (@rust-wasm-plugin-struct).
       fn_on_error: Option<TypedFunc<(i32, i32), i64>>,
   }
   ```,
-  caption: [`WasmExtensionInstance` implementering],
+  caption: [`WasmExtensionInstance` implementering #footnote([
+      Hook-funktionerne i `WASM`-modulet returnerer en `i64` frem for to separate `i32`
+      værdier. Dette skyldes at multi-value returns fra Rust kompileret til `wasm32`
+      ikke eksporteres korrekt, så pointer og længde pakkes i stedet ind i ét 64-bit
+      heltal med lidt bit-magic: de 32 laveste bits er pointeren, de 32 højeste er længden.
+      Dette er en begrænsning i `wasm32` ABI'en og dette var den simpleste løsning
+      uden for meget overhead.
+    ]) <wasm-i64-return>],
 ) <rust-wasm-extension-instance-struct>
 
 #figure(
@@ -464,7 +469,43 @@ og `WasmPlugin` (@rust-wasm-plugin-struct).
   caption: [`WasmPlugin` implementering (kommentarer fjernet)],
 ) <rust-wasm-plugin-struct>
 
-// TODO
+WASM-moduler kører i et isoleret sandboxet miljø og kan derfor ikke kalde vilkårlige
+OS-funktioner. Det er host-applikationens ansvar eksplicit at eksponere de funktioner
+et modul må kalde, via `wasmtime`'s `Linker`. Her eksponerer vi kun én enkelt host-funktion:
+`env::log`, der give extensions mulighed for at printe til værtens `stdout` ved
+at sende en pointer og en længde. For `FFI` gælder det modsatte da modulet kører
+i samme adresserum som applikationen og kan i princippet kalde hvad som helst.
+`WASM`'s model er dermed mere strikt, men giver kontrol over hvad extensions har
+adgang til.
+
+Den mest centrale del af `WASM` implementeringen er `call_hook` metoden på `WasmExtensionInstance`,
+der håndterer kommunikationen med et `WASM`-modul når en hook kaldes. Fordi modulet
+kører i sin egen hukommelse, kan man ikke nøjes med at sende en Rust-reference til
+det. I stedet foregår dette kald i nogle trin:
+
+1. Alloker ved at kalde `plugin_alloc(len)` i `WASM`-modulet og få en pointer tilbage
+  til en buffer i modulet hukommelse.
+
+2. Skriv til den allokerede adresse ved at kopiere den serialiserede kontekst buffer fra host-applikationens
+  hukommelse ind i `WASM`-modulets hukommelse.
+
+3. Kald hook-funktionen @wasm-i64-return.
+
+4. Læs resultat-bytes ud af `WASM`-modulets hukommelse.
+
+5. Frigør hukommelsen ved at kalde `plugin_free` inde i modulet for
+  at frigøre bufferen.
+
+Sammenlignet med `FFI`'s `call_hook` er dette mere omstændigt. `FFI`-implementeringen
+kalder hook-funktionen direkte, modtager en `FfiPluginBuffer` med pointer og længde
+tilbage, læser bytes og frigører derefter hukommelsen med `fn_free`.
+
+En stor forskel på de to implementeringer er mængden af `unsafe`-kode. `WASM`-implementeringen
+indeholder ikke nogen runtime `unsafe`-kode da `wasmtime` kun eksponerer et fuldstændigt sikkert API,
+og al kommunikation med `WASM`-modulet sker kun gennem `wasmtime`. Derimod indeholder
+`FFI`-implementeringen ca. otte runtime `unsafe` blokke. Dette er dog ikke nødvendigvis
+en svaghed ved `FFI`-implementeringen, da det er uungåeligt når man arbejder med
+native kode. Dette viser dog at `WASM`'s sandboxing også afspejles i selve kode.
 
 == Test-extensions
 
