@@ -274,29 +274,96 @@ også betyde at man kan skrive ekstensions i andre sprog der har MessagePack imp
 Runtime-performance ville evt. kunne forbedres ved at bruge en custom protokol istedet.
 Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige fod.
 
+// TODO describe the following figures
+
+#figure(
+  ```rust
+  pub trait Extension: Send + Sync {
+      fn name(&self) -> &str;
+      fn version(&self) -> &str;
+
+      fn capabilities(&self) -> u32;
+
+      fn has_capability(&self, cap: u32) -> bool {
+          caps::has(self.capabilities(), cap)
+      }
+
+      fn on_load(&self);
+      fn on_unload(&self);
+      fn on_request(
+          &self,
+          method: &str,
+          uri: &str,
+          upstream_url: &str,
+          headers: &[(String, String)],
+          body: &[u8],
+      ) -> HookResult;
+      fn on_response(&self, status: u16, headers: &[(String, String)], body: &[u8]) -> HookResult;
+      fn on_error(&self, status: u16, upstream_url: &str) -> HookResult;
+  }
+  ```,
+  caption: [`Extension` trait (kommentarer fjernet)],
+) <rust-extension-trait>
+
+#figure(
+  ```rust
+  pub enum HookResult {
+      Continue {
+          extra_headers: Vec<(String, String)>,
+          body_override: Option<Vec<u8>>,
+      },
+      Replace {
+          status: u16,
+          headers: Vec<(String, String)>,
+          body: Vec<u8>,
+      },
+      Error(String),
+  }
+  ```,
+  caption: [`HookResult` enum (kommentarer fjernet)],
+) <rust-hook-result-enum>
+
+#figure(
+  ```rust
+  pub mod caps {
+      pub const ON_REQUEST: u32 = 0b001;
+      pub const ON_RESPONSE: u32 = 0b010;
+      pub const ON_ERROR: u32 = 0b100;
+
+      pub fn has(mask: u32, cap: u32) -> bool {
+          mask & cap != 0
+      }
+  }
+  ```,
+  caption: [`caps` modul med bitmasks der beskriver capabilities en extension understøtter],
+) <rust-caps-module>
+
 == FFI implementering
 
 Filen `src/extensions/ffi.rs` indeholder ca. 200 linjer kode og er alt kode specifik
 til implementering af FFI. Filen beskriver primært structen `FfiExtension` der
 implementerer `Extension` trait.
 
-```rust
-#[allow(dead_code)]
-pub struct FfiExtension {
-    _lib: Library,
-    name: String,
-    version: String,
-    capability_mask: u32,
-    fn_on_load: unsafe extern "C" fn(),
-    fn_on_unload: unsafe extern "C" fn(),
-    fn_on_request: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
-    fn_on_response: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
-    fn_on_error: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
-    fn_free: unsafe extern "C" fn(*mut u8, u32),
-}
-```
+#figure(
+  ```rust
+  #[allow(dead_code)]
+  pub struct FfiExtension {
+      _lib: Library,
+      name: String,
+      version: String,
+      capability_mask: u32,
+      fn_on_load: unsafe extern "C" fn(),
+      fn_on_unload: unsafe extern "C" fn(),
+      fn_on_request: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+      fn_on_response: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+      fn_on_error: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
+      fn_free: unsafe extern "C" fn(*mut u8, u32),
+  }
+  ```,
+  caption: "FfiExtension struct",
+) <rust-ffi-extension>
 
-`FfiExtension` indeholder bl.a. vores `Library` fra
+På @rust-ffi-extension ses at `FfiExtension` bl.a. indeholder `Library` fra
 `libloading` som er, ifølge dokumentationen, "et loaded dynamisk library". Selvom
 denne property ikke bliver brugt i koden er det nødvendigt at opbevare den, da `Library`
 implementerer `Drop`-traiten der kalder `dlclose` på Linux systemet, hvilket er
@@ -313,20 +380,23 @@ og at Rust's compiler ikke brokker sig, kan vi altså ikke antage at symbolerne 
 eksisterer, efter at `Drop`-traiten bliver kaldt, hvilket den gør når `Library` ryger
 ud af gyldigt scope @rust-drop-trait.
 
-Data fra hooks der bliver kaldt i en extension, bliver returneret i form af `FfiPluginBuffer`.
-I `C` er variable længder af data (fx `string`) beskrevet med en pointer og en længde.
-Det samme gør vi her for at læse bytes fra en specifik lokation i hukommelsen. Det
-bytes der ligger på denne lokation i hukommelsen bliver læst og derefter decoded,
-som defineret i `protocol`. Dette bliver offloadet til `rmp_serde` og er derfor
-ikke i dette projekts scope at implementere.
+Data fra hooks der bliver kaldt i en extension, bliver returneret i form af `FfiPluginBuffer`
+(se @rust-ffi-plugin-buffer). I `C` er variable længder af data (fx `string`)
+beskrevet med en pointer og en længde. Det samme gør vi her for at læse bytes fra
+en specifik lokation i hukommelsen. Det bytes der ligger på denne lokation i hukommelsen
+bliver læst og derefter decoded, som defineret i `protocol`. Dette bliver offloadet
+til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
 
-```rust
-#[repr(C)]
-pub struct FfiPluginBuffer {
-    pub ptr: *mut u8,
-    pub len: u32,
-}
-```
+#figure(
+  ```rust
+  #[repr(C)]
+  pub struct FfiPluginBuffer {
+      pub ptr: *mut u8,
+      pub len: u32,
+  }
+  ```,
+  caption: "FfiPluginBuffer struct",
+) <rust-ffi-plugin-buffer>
 
 Efter af denne buffer er blevet læst og decoded til en Rust struct der er nemmere
 at arbejde med, skal denne buffer frigøres i hukommelsen så vi ikke får et memory
@@ -343,8 +413,50 @@ Den sørger også for at kalde `fn_free` på det rigtige tidspunkt.
 
 == WASM implementering
 
-Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og er alt kode specifikt
-til implementering af WASM.
+Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og indeholder alt
+kode specifikt til implementering af WASM.
+
+Nogle af ideerne bag `WASM` implementeringen minder `FFI`s implementering, men der er stadig
+væsentlige forskelle. Fx tillader `WASM` at give adgang til en begrænset del af
+værtens hukommelse, hvad `wasmtime` har kaldt en store, der fx kan håndtere adgange
+til databaser eller anden state en applikation måttet have brug for at eksponere
+til extensions. En anden forskel er at `WASM` implementeringen består af to essentielle
+structs. Da `wasmtime`'s Store er !Sync @rust-lang-send-and-sync, hvilket gør at
+den ikke kan bruges i async sammenhænge da den derved skal deles mellem threads,
+wrapper vi den i en anden struct hvor den bliver puttet i en `Mutex`. Hvordan dette
+er gjort, ses i hhv. `WasmExtensionInstance` (@rust-wasm-extension-instance-struct)
+og `WasmPlugin` (@rust-wasm-plugin-struct).
+
+#figure(
+  ```rust
+  #[allow(dead_code)]
+  struct WasmExtensionInstance {
+      store: Store<HostData>,
+      memory: Memory,
+      capability_mask: u32,
+      fn_alloc: TypedFunc<i32, i32>,
+      fn_free: TypedFunc<(i32, i32), ()>,
+      fn_on_load: TypedFunc<(), ()>,
+      fn_on_unload: TypedFunc<(), ()>,
+      fn_on_request: Option<TypedFunc<(i32, i32), i64>>,
+      fn_on_response: Option<TypedFunc<(i32, i32), i64>>,
+      fn_on_error: Option<TypedFunc<(i32, i32), i64>>,
+  }
+  ```,
+  caption: [`WasmExtensionInstance` implementering],
+) <rust-wasm-extension-instance-struct>
+
+#figure(
+  ```rust
+  pub struct WasmPlugin {
+      name: String,
+      version: String,
+      capability_mask: u32,
+      inner: Mutex<WasmExtensionInstance>,
+  }
+  ```,
+  caption: [`WasmPlugin` implementering (kommentarer fjernet)],
+) <rust-wasm-plugin-struct>
 
 // TODO
 
@@ -608,6 +720,16 @@ en mekanisme der gør at forskellige programmeringssprog kan tale sammen @ffi-wi
 hvorimod `WASM` er en åben standard der beskriver et "portable binary code" format
 og et tilsvarende tekst format for eksekverbare programmer, der er designet til
 at køre i en browser, med mulighed for at køre det i andre miljøer @wasm-wiki.
+
+Noget der gør analysen upræcis i den virkelige verden
+mht. mængden af kode i extensionsne skal det også noteres
+at rigtig mange projekter stiller libraries til rådighed der gør implementeringen
+nemmere for understøttede sprog. For dette projekt ville dette bl.a. inkludere vores
+protokol-typer og seraliseringen af dem, og kunne fx, for Rust, sørge for en macro der
+implementerer `plugin_name` og `plugin_version` baseret på projektets Cargo.toml
+name og version attributer. Dette vil mindske mængden af kode, sørge for at implementeringen
+altid er korrekt og samtidigt er det nemmere at arbejde med for slut-udvikleren,
+da implementings-specifikke detaljer er mindre vigtige.
 
 
 // - Liste alle kilder korrekt

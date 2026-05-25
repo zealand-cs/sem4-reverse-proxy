@@ -171,3 +171,10 @@ cargo-make-github:
     url:
         value: https://github.com/sagiegurari/cargo-make
         date: 2026-05-25
+
+rust-lang-send-and-sync:
+    type: web
+    title: Send and Sync
+    url:
+        value: https://doc.rust-lang.org/nomicon/send-and-sync.html
+        date: 2026-05-25
