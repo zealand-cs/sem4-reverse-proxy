@@ -9,7 +9,8 @@
   author: none,
   email: none,
   date: none,
-  total-characters: none,
+  character-count: none,
+  normalsider: none,
   institution: none,
   programme: none,
 ) = {
@@ -34,7 +35,8 @@
   if institution != none { meta.push((label: "Institution", value: institution)) }
   if programme != none { meta.push((label: "Uddannelse", value: programme)) }
   if date != none { meta.push((label: "Dato", value: date.display("[day]. [month repr:short] [year]"))) }
-  if total-characters != none { meta.push((label: "Tegn inkl. mellemrum", value: total-characters)) }
+  if character-count != none { meta.push((label: "Tegn inkl. mellemrum", value: character-count)) }
+  if normalsider != none { meta.push((label: "Normalsider", value: normalsider)) }
 
   if meta.len() > 0 {
     align(center + bottom, grid(
@@ -58,7 +60,8 @@
   author: none,
   email: none,
   abstract: none,
-  total-characters: none,
+  character-count: none,
+  normalsider: none,
   institution: none,
   programme: none,
   body,
@@ -82,7 +85,8 @@
       author: author,
       email: email,
       date: date,
-      total-characters: total-characters,
+      character-count: character-count,
+      normalsider: normalsider,
       institution: institution,
       programme: programme,
     )

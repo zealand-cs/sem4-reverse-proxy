@@ -15,17 +15,20 @@
 
 #show: word-count.with(counter: string-word-count, exclude: (raw,))
 #set text(lang: "da")
+#let normalsider = context (calc.round(state("wordometer").final().characters / 2400, digits: 1))
 #show: synopsis.with(
   author: "William K. G. Jelgren",
   email: "wij001@edu.zealand.dk",
   title: [Plugin-arkitektur i Rust: #linebreak() FFI vs. WASM i modulær software],
   abstract: none,
   date: datetime(year: 2026, month: 06, day: 05),
-  total-characters: total-characters,
+  character-count: total-characters,
+  normalsider: normalsider,
   institution: [Zealand - Sjællands Erhvervsakademi],
   programme: [Datamatiker],
 )
 
+#total-characters.fields()
 
 // ## Hvad er en synopsis?
 //
