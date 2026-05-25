@@ -18,9 +18,12 @@
 #show: synopsis.with(
   author: "William K. G. Jelgren",
   email: "wij001@edu.zealand.dk",
-  title: "Modulær reverse proxy med FFI og WASM i Rust",
+  title: [Plugin-arkitektur i Rust: #linebreak() FFI vs. WASM i modulær software],
   abstract: none,
+  date: datetime(year: 2026, month: 06, day: 05),
   total-characters: total-characters,
+  institution: [Zealand - Sjællands Erhvervsakademi],
+  programme: [Datamatiker],
 )
 
 
