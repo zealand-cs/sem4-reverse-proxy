@@ -775,25 +775,24 @@ ikke hvad de er designet til. Benchmarksne sammenligner altså ikke to ligeværd
 løsninger på samme problem, men to teknologier med forskelligt ophav, brugt til
 samme formål.
 
-`WASM` er derfor ikke dårligere end `FFI`, men et bevidst tradeoff. Man opgiver
-performance og et lavt hukommelsesforbrug til fordel for isolation og sikkerhed.
-For en applikation der loader extensions fra ukendte tredjeparter er `WASM`'s
-sandboxing et krav. `FFI` giver til gengæld direkte adgang til native kode med
-minimalt overhead, men kræver fuld tillid til extensionen. Valget afhænger altså
-ikke af hvilken teknologi der er "bedst", men af hvilken risikoprofil og sikkerhedsmodel
-applikationen kræver og hvilke performancekrav og driftsmiljø den skal leve i.
-En latency-kritisk service med betroede extensions peger mod `FFI`, mens en
-platform der kører vilkårlig tredjeparts kode i et ressourcestærkt miljø sagtens
-kan håndtere `WASM`'s overhead.
+`WASM` er derfor ikke dårligere end `FFI`, men et bevidst tradeoff. Forskellen er
+fundamental: `FFI`-plugins kører i samme adresserum som host-applikationen og har
+dermed i princippet ubegrænset adgang til hukommelse og OS-funktioner uden nogen
+begrænsning fra runtimen. `WASM`-moduler kører derimod i et isoleret sandbox adskilt
+fra hostens adresserum, og kan kun kalde de host-funktioner der eksplicit er eksponeret
+via `wasmtime`'s `Linker`, hvilket i dette projekt udelukkende er `env::log`. Alt andet er
+utilgængeligt for modulet. Man betaler altså en runtime-pris for denne garanti.
+Valget afhænger ikke af hvilken teknologi der er "bedst", men af tillidsmodellen:
+en latency-kritisk service med betroede extensions peger mod `FFI`, mens en platform
+der kører vilkårlig tredjeparts kode sagtens kan bære `WASM`'s overhead til gengæld
+for sandboxing.
 
 == Perspektivering
 
-`FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation.
-Dette valg er ikke unik for reverse proxies, men for alle situation hvor en applikation
-skal køre ekstern kode. Med `FFI` accepterer man at en extension er udviklet af en
-betroet udvikler og man belønnes med minimalt overhead. Med `WASM` antager man det
-modsatte og betaler en runtime-pris for denne garanti. Da extension-økosystem vokser
-og tredjeparsudvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
+`FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation, og
+dette valg er ikke unikt for reverse proxies, men for alle situationer hvor en
+applikation skal køre ekstern kode. Da extension-økosystemer vokser og tredjeparts-
+udvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
 Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere
 `WASM`'s boilderplate og overhead, hvilket på sigt kan ændre denne balance. Men
 den grundlæggende filosofiske forskel på `FFI` og `WASM` vil altid forblive.
