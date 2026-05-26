@@ -707,8 +707,6 @@ Vi kan konkludere at det er muligt at designe en udvidelig reverse proxy i Rust,
 der understøtter både `FFI` og `WASM` som plugin-mekanismer, og at de to tilgange
 adskiller sig markant i implementeringskompleksitet, performance og ressourceforbrug.
 
-1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis WASM og FFI?
-
 En reverse proxy kan udvides relativt hurtigt ved brug af eksisterende crates i
 Rust-økosystemet. De essentielle crates der sørger for at selve reverse proxyen
 fungerer er: `tokio`, `hyper`, `http-body-util`, `hyper-util` og `bytes`.
@@ -723,9 +721,6 @@ Noget af det første reverse proxyen gør når den starter, er at parse konfigur
 og derefter loade de extensions der er defineret i samme konfiguration. Extensionsne
 kan "subscribe" på forskellige hooks via en bitmask, og proxyen kalder kun de extensions
 der har registreret sig på en given hook.
-
-2. Hvilke forskelle er der mellem `WASM` og `FFI` i forhold til kodekompleksitet,
-  læsbarhed og udviklingsoplevelse?
 
 `FFI`-implementeringen udgør ca. 200 linjer kode og `WASM`-implementeringen ca. 300.
 Forskellen skyldes bl.a. at `WASM` kræver mere boilerplate, fx ved brug af en `Mutex`-wrapper
@@ -745,9 +740,6 @@ allerede kender til. `WASM` kræver viden og forståelse for hvordan `wasmtime`'
 koncepter som `Store`, `Linker` og `Engine` fungerer, men resulterer dog i et sikrere
 API hvor fejl primært fanges ved kompilering frem for runtime.
 
-3. Hvordan adskiller WASM- og FFI-baserede udvidelser sig i forhold til svartid,
-  throughput og hukommelsesforbrug?
-
 Baseret på benchmarksne vinder `FFI` i alle kategorier. Opstartstiden er næsten
 identisk med baselinjen, mens `WASM` er omkring 4,4 gange langsommere at starte,
 primært fordi `WASM` JIT-kompilerer modulet ved load. Throughput falder med 28,8%
@@ -763,14 +755,6 @@ og at den reelle forskel mellem `FFI` og en native extension sandsynligvis ville
 være endnu mindre. Det ændrer dog ikke konklusionen, da `FFI` slår `WASM` i alle
 benchmarks, men forklarer den større, uforudsete forskel på trhoughput mellem `FFI`
 og `no-plugins` som set på @fig-load-rps.
-
-Disse delkonklusioner hjælper os til at besvare den overordnede problemformulering.
-
----
-
-Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidelser
-via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
-udviklingskompleksitet, performance og ressourceforbrug?
 
 Designmæssigt er svaret det fælles `Extension`-trait. Ved at lade begge tilgange
 implementere ét fælles interface kan reverse proxyen understøtte begge dele, uden
@@ -790,6 +774,17 @@ ikke hvad de er designet til. Benchmarksne sammenligner altså ikke to ligeværd
 løsninger på samme problem, men to teknologier med forskelligt ophav, brugt til
 samme formål.
 
+`WASM` er derfor ikke dårligere end `FFI`, men et bevidst tradeoff. Man opgiver
+performance og et lavt hukommelsesforbrug til fordel for isolation og sikkerhed.
+For en applikation der loader extensions fra ukendte tredjeparter er `WASM`'s
+sandboxing et krav. `FFI` giver til gengæld direkte adgang til native kode med
+minimalt overhead, men kræver fuld tillid til extensionen. Valget afhænger altså
+ikke af hvilken teknologi der er "bedst", men af hvilken risikoprofil og sikkerhedsmodel
+applikationen kræver og hvilke performancekrav og driftsmiljø den skal leve i.
+En latency-kritisk service med betroede extensions peger mod `FFI`, mens en
+platform der kører vilkårlig tredjeparts kode i et ressourcestærkt miljø sagtens
+kan håndtere `WASM`'s overhead.
+
 == Perspektivering
 
 `FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation.
@@ -798,9 +793,9 @@ skal køre ekstern kode. Med `FFI` accepterer man at en extension er udviklet af
 betroet udvikler og man belønnes med minimalt overhead. Med `WASM` antager man det
 modsatte og betaler en runtime-pris for denne garanti. Da extension-økosystem vokser
 og tredjeparsudvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
-Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere `WASM`'s boilderplate
-og overhead, hvilket på sigt kan ændre denne balance. Men den grundlæggende filosofiske
-forskel på `FFI` og `WASM` vil altid forblive.
+Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere
+`WASM`'s boilderplate og overhead, hvilket på sigt kan ændre denne balance. Men
+den grundlæggende filosofiske forskel på `FFI` og `WASM` vil altid forblive.
 
 = Reflektion
 
