@@ -365,11 +365,100 @@ om en given capability er sat i bitmasken.
 
 == Simpel reverse proxy
 
-// TODO
+Selve reverse proxyen er implementeret i `src/router.rs` i structen `ProxyRouter`.
+Dens ansvar er at tage en indkommende HTTP-request, slå den op i route-tabellen,
+viderestille den til den rigtige upstream-service og returnere svaret tilbage til
+klienten. Extensions indgår som en del af dette flow og kaldes på bestemte tidspunkter.
 
-*Ikke skrevet endnu*
+#figure(
+  ```rust
+  let host = req
+      .headers()
+      .get(HOST)
+      .and_then(|v| v.to_str().ok())
+      .map(|h| h.split(':').next().unwrap_or(h).to_string());
 
-> Lagde først mærke til at jeg ikke har skrevet dette her til aften (25-05-2026).
+  let Some(host) = host else {
+      return err(StatusCode::BAD_REQUEST);
+  };
+  let Some(rules) = self.routes.get(&host) else {
+      return err(StatusCode::NOT_FOUND);
+  };
+
+  let path = req.uri().path().to_string();
+  let Some((_, upstream_base)) = rules.iter().find(|(p, _)| path.starts_with(p.as_str()))
+  else {
+      return err(StatusCode::NOT_FOUND);
+  };
+  ```,
+  caption: [Host-header opslag og longest-prefix route matching (`router.rs`)],
+) <rust-routing>
+
+Når en request ankommer, læses `Host`-headeren (@rust-routing). Porten strippes
+fra værdien, da konfigurationen kun definerer hostnavn. Er hostet ikke defineret i
+route-tabellen, returneres `404`. Herefter matches stien mod de præfix-regler der
+er defineret for den pågældende host. Reglerne er sorteret efter længden på præfixet,
+hvor den længste er først, så den mest specifikke regel altid vinder. Hvis ingen
+regler matcher, returneres `404` også.
+
+#figure(
+  ```rust
+  let path_and_query = req
+      .uri()
+      .path_and_query()
+      .map(|p| p.as_str())
+      .unwrap_or("/");
+  let upstream_url = format!("{}{}", upstream_base, path_and_query);
+  ```,
+  caption: [Konstruktion af upstream URL (`router.rs`)],
+) <rust-upstream-url>
+
+Upstream-URL'en (@rust-upstream-url) bygges ved at sammensætte base-URL'en fra
+den matchede regel med `path_and_query` fra den indkommende request. En request
+til `http://localhost/api/users?page=2` med en regel der mapper `/api` til
+`http://backend:8080` resulterer altså i `http://backend:8080/api/users?page=2`.
+
+#figure(
+  ```rust
+  for ext in self.extensions.iter() {
+      if !caps::has(ext.capabilities(), caps::ON_REQUEST) {
+          continue;
+      }
+      let result = tokio::task::block_in_place(|| {
+          ext.on_request(&method, &uri, &upstream_url, &req_headers, &working_body)
+      });
+      match result {
+          HookResult::Replace { status, headers, body } => {
+              return Ok(build_response(status, headers, body));
+          }
+          HookResult::Continue { extra_headers: h, body_override } => {
+              extra_headers.extend(h);
+              if let Some(b) = body_override {
+                  working_body = b;
+              }
+          }
+          HookResult::Error(msg) => {
+              eprintln!("plugin on_request error: {msg}");
+              return err(StatusCode::INTERNAL_SERVER_ERROR);
+          }
+      }
+  }
+  ```,
+  caption: [`on_request`-hook loop inden viderestilling (`router.rs`)],
+) <rust-on-request-loop>
+
+Inden requesten sendes videre til upstream, køres `on_request`-hooks for alle
+extensions der har registreret `ON_REQUEST` i deres capability-bitmask (@rust-on-request-loop).
+Extensions der ikke har registreret sig springes over uden yderligere kald.
+Returnerer en extension `Replace`, stoppes behandlingen og svaret sendes direkte
+til klienten. Returnerer den `Continue`, akkumuleres eventuelle ekstra headers og
+body-overrides på tværs af alle extensions, inden de tilføjes til den udgående
+request. `Host`-headeren fjernes herefter, da den ellers ville forstyrre upstream.
+
+Selve viderestillingen sker med `hyper`'s `Client`. Fejler kaldet, eller returnerer
+upstream et 5xx-svar, køres `on_error`-hooks. Lykkes kaldet, køres `on_response`-hooks
+for extensions der har registreret `ON_RESPONSE`, og det endelige svar bygges med
+eventuelle ekstra headers og en evt. modificeret body.
 
 == FFI implementering
 
