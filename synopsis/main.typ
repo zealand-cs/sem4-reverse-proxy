@@ -426,18 +426,19 @@ til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
   pub struct FfiPluginBuffer {
       pub ptr: *mut u8,
       pub len: u32,
+      pub cap: u32,
   }
   ```,
   caption: [`FfiPluginBuffer` struct],
 ) <rust-ffi-plugin-buffer>
 
-Efter af denne buffer er blevet læst og decoded til en Rust struct der er nemmere
-at arbejde med, skal denne buffer frigøres i hukommelsen så vi ikke får et memory
-leak. Det gør vi med `fn_free` (defineret i `FfiExtension`), hvilket er en funktion der skal
-implementeres i alle ffi extensions. `fn_free` sørger så for at frigøre hukommelsen der
-er blevet allokeret for `FfiPluginBuffer`. Vi arbejder altså med to forskellige
-grader af tillid, at applikationen anmoder om at frigøre hukommelsen korrekt og
-at extensionen så faktisk frigører hukommelsen korrekt.
+`FfiPluginBuffer` på @rust-ffi-plugin-buffer indeholder tre felter: `ptr`, `len` og
+`cap`. I Rust er `len` og `cap` ikke nødvendigvis ens, da allokatoren kan have
+reserveret en større blok end det der faktisk blev skrevet — at rekonstruere `Vec`'en
+med `len` som kapacitet ville derfor være undefined behaviour. `cap` krydser
+FFI-grænsen så `fn_free` (også set på @rust-ffi-extension) altid kan frigøre præcis
+hvad der blev allokeret. Vi arbejder altså med to grader af tillid: at applikationen
+anmoder om at frigøre hukommelsen korrekt, og at extensionen faktisk gør det.
 
 Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
 symboler i vores extension for specifikt FFI implementationen og sørger også for at
