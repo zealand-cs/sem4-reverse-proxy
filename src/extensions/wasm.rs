@@ -210,8 +210,16 @@ impl WasmExtensionInstance {
         // call the hook function.
         let packed = match hook.call(&mut self.store, (wasm_ptr, ctx_len)) {
             Ok(r) => r,
-            Err(e) => return HookResult::Error(format!("hook call failed: {e}")),
+            Err(e) => {
+                // free the input buffer before returning.
+                let _ = self.fn_free.call(&mut self.store, (wasm_ptr, ctx_len));
+                return HookResult::Error(format!("hook call failed: {e}"));
+            }
         };
+
+        // free the input buffer now that the hook has consumed it.
+        let _ = self.fn_free.call(&mut self.store, (wasm_ptr, ctx_len));
+
         let result_ptr = (packed & 0xFFFFFFFF) as i32;
         let result_len = ((packed >> 32) & 0xFFFFFFFF) as i32;
 
