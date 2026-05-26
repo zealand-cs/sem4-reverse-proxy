@@ -552,17 +552,16 @@ osv.
 
 == Benchmarks
 
-Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha`. Benchmarks
-kan blive kørt ved at køre `cargo make bench-all`. Alle resultater vil
-blive skrevet til `results/` mappen i roden af repositoriet. Disse resultater vil
-hjælpe med at besvare underspørgsmål 3. Herunder vil resultaterne vises i form af
-grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst`
-@typst-app. #footnote[
-  Alle benchmarks er kørt på en bærbar
-  laptop (ASUS ZenBook model UM431D fra 2020) med Linux (NixOS). MacOS og Windows
-  (og dermed WSL) er ikke testet og jeg kan derfor ikke garantere at resultaterne
-  kan repoduceres på disse styresystemer. På trods af dette er resultaterne så
-  klare på dette system at jeg antager der vil være samme tendens på andre systemer.
+Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha` og kan køres
+med `cargo make bench-all`. Alle resultater skrives til `results/`-mappen i roden
+af repositoriet. En simpel demo-server kørte lokalt under alle tests, så
+netværkslatency ikke påvirker resultaterne. Herunder præsenteres resultaterne som
+grafer genereret med `lilaq` @lilaq-homepage, et library til `Typst` @typst-app. #footnote[
+  Alle benchmarks er kørt på en bærbar laptop (ASUS ZenBook model UM431D fra 2020)
+  med Linux (NixOS). MacOS og Windows (og dermed WSL) er ikke testet og jeg kan
+  derfor ikke garantere at resultaterne kan reproduceres på disse styresystemer.
+  På trods af dette er resultaterne så klare på dette system at jeg antager der
+  vil være samme tendens på andre systemer.
 ]
 
 #let _s_noplugins = json("results/startup_no-plugins.json").results.at(0)
@@ -589,10 +588,10 @@ grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst
     lq.plot((1,), (s_means.at(1),), yerr: (s_stddevs.at(1),), stroke: none, mark: none, color: black),
     lq.plot((2,), (s_means.at(2),), yerr: (s_stddevs.at(2),), stroke: none, mark: none, color: black),
   ),
-  caption: [Opstartstid for de tre varianter (gennemsnit ± stddev, n=10) (lavere er bedre)],
+  caption: [Opstartstid (TTFB) for de tre varianter, `hyperfine --warmup 2 --runs 10`, lokal demo-server, gennemsnit ± stddev (lavere er bedre)],
 ) <fig-startup>
 
-På <fig-startup> ser vi at FFI næsten ikke tilføjer overhead til opstartstiden,
+På @fig-startup ser vi at FFI næsten ikke tilføjer overhead til opstartstiden (TTFB),
 mens WASM er 4,4 gange langsommere at starte. Dette er primært fordi `wasmtime`
 JIT-kompilerer modulet ved load.
 
@@ -638,7 +637,7 @@ JIT-kompilerer modulet ved load.
       label: [wasm],
     ),
   ),
-  caption: [Svartidspercentiler (p50, p90, p99) under load (10 000 requests) (lavere er bedre)],
+  caption: [Svartidspercentiler (p50, p90, p99), `oha -n 10000 -c 50`, lokal demo-server, ingen warm-up (lavere er bedre)],
 ) <fig-load-latency>
 
 #figure(
@@ -657,7 +656,7 @@ JIT-kompilerer modulet ved load.
     lq.plot((1,), (_l_ffi.rps.mean,), yerr: (_l_ffi.rps.stddev,), stroke: none, mark: none, color: black),
     lq.plot((2,), (_l_wasm.rps.mean,), yerr: (_l_wasm.rps.stddev,), stroke: none, mark: none, color: black),
   ),
-  caption: [Gennemsnitlig requests/sek under load (gennemsnit ± stddev) (højere er bedre)],
+  caption: [Gennemsnitlig requests/sek under load, `oha -n 10000 -c 50`, lokal demo-server, ingen warm-up, gennemsnit ± stddev (højere er bedre)],
 ) <fig-load-rps>
 
 På @fig-load-rps ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
@@ -686,7 +685,12 @@ på `FFI` og `WASM`.
     lq.bar((1,), (mem_ffi_mb,), width: 0.6, fill: green.lighten(20%)),
     lq.bar((2,), (mem_wasm_mb,), width: 0.6, fill: red.lighten(20%)),
   ),
-  caption: [Peak RSS-hukommelsesforbrug for de tre varianter (lavere er bedre)],
+  caption: [
+    Peak VmRSS #footnote[Resident Set Size, den fysisk tilgængelige hukommelse en
+      applikation bruger, hvor Swap-space og lign. ikke er inkluderet @linux-proc-pid-statm @linux-proc-pid-status.
+    ] under `oha`-kørslen, samplet fra `/proc/$PID/status` @linux-proc-pid-status
+    hvert 0,5 sek., lokal demo-server (lavere er bedre)
+  ],
 ) <fig-memory>
 
 Hukommelsesforbruget er marginalt for FFI (+564 kB), men markant større for
