@@ -264,6 +264,92 @@ og `hyper` kommer til at håndtere HTTP. Feature flags @rust-lang-docs-features 
 for at `WASM`- og `FFI`-koden kompileres når de skal bruges. Dette sikrer at de
 to implementationer ikke påvirker hinanden på nogen måde under tests og benchmarking.
 
+== Simpel reverse proxy
+
+Selve reverse proxyen er implementeret i `src/router.rs` i structen `ProxyRouter`.
+Dens ansvar er at tage en indkommende HTTP-request, slå den op i route-tabellen,
+viderestille den til den rigtige upstream-service og returnere svaret tilbage til
+klienten. Extensions indgår som en del af dette flow og kaldes på bestemte
+tidspunkter via hooks som beskrevet i @extension-trait.
+
+#figure(
+  ```rust
+  let host = req
+      .headers()
+      .get(HOST)
+      .and_then(|v| v.to_str().ok())
+      .map(|h| h.split(':').next().unwrap_or(h).to_string());
+
+  let Some(host) = host else {
+      return err(StatusCode::BAD_REQUEST);
+  };
+  let Some(rules) = self.routes.get(&host) else {
+      return err(StatusCode::NOT_FOUND);
+  };
+
+  let path = req.uri().path().to_string();
+  let Some((_, upstream_base)) = rules.iter().find(|(p, _)| path.starts_with(p.as_str()))
+  else {
+      return err(StatusCode::NOT_FOUND);
+  };
+  ```,
+  caption: [Host-header opslag og longest-prefix route matching (`router.rs`)],
+) <rust-routing>
+
+Når en request ankommer, læses `Host`-headeren (@rust-routing) og porten strippes.
+Hosten slås op i route-tabellen og stien matches mod præfix-regler sorteret efter
+længde, så den mest specifikke regel vinder. Findes ingen match, returneres `404`.
+
+#figure(
+  ```rust
+  let path_and_query = req
+      .uri()
+      .path_and_query()
+      .map(|p| p.as_str())
+      .unwrap_or("/");
+  let upstream_url = format!("{}{}", upstream_base, path_and_query);
+  ```,
+  caption: [Konstruktion af upstream URL (`router.rs`)],
+) <rust-upstream-url>
+
+Upstream-URL'en (@rust-upstream-url) bygges ved at sammensætte base-URL'en fra
+den matchede regel med `path_and_query` fra den indkommende request.
+
+#figure(
+  ```rust
+  for ext in self.extensions.iter() {
+      if !caps::has(ext.capabilities(), caps::ON_REQUEST) {
+          continue;
+      }
+      let result = tokio::task::block_in_place(|| {
+          ext.on_request(&method, &uri, &upstream_url, &req_headers, &working_body)
+      });
+      match result {
+          HookResult::Replace { status, headers, body } => {
+              return Ok(build_response(status, headers, body));
+          }
+          HookResult::Continue { extra_headers: h, body_override } => {
+              extra_headers.extend(h);
+              if let Some(b) = body_override {
+                  working_body = b;
+              }
+          }
+          HookResult::Error(msg) => {
+              eprintln!("plugin on_request error: {msg}");
+              return err(StatusCode::INTERNAL_SERVER_ERROR);
+          }
+      }
+  }
+  ```,
+  caption: [`on_request`-hook loop inden viderestilling (`router.rs`)],
+) <rust-on-request-loop>
+
+Inden requesten sendes videre, køres `on_request`-hooks (@rust-on-request-loop)
+for alle extensions med `ON_REQUEST` i deres bitmask. `Replace` stopper behandlingen
+og sender svaret direkte, `Continue` akkumulerer ekstra headers og body-overrides,
+og `Error` afbryder med en fejl. Selve viderestillingen sker med `hyper`'s `Client`,
+og `on_error`- og `on_response`-hooks køres tilsvarende efter upstream-kaldet.
+
 == Extension interface <extension-trait>
 
 For at både `FFI` og `WASM` bliver brugt på akkurat samme måde i proxyens kode,
@@ -358,91 +444,6 @@ body. `Replace` returnerer et helt nyt svar, og `Error` indikerer en fejl.
 
 Capabilities komponeres med bitmask-konstanter i `caps`-modulet (@rust-caps-module),
 fx `ON_REQUEST | ON_RESPONSE` for en extension der vil reagere på begge.
-
-== Simpel reverse proxy
-
-Selve reverse proxyen er implementeret i `src/router.rs` i structen `ProxyRouter`.
-Dens ansvar er at tage en indkommende HTTP-request, slå den op i route-tabellen,
-viderestille den til den rigtige upstream-service og returnere svaret tilbage til
-klienten. Extensions indgår som en del af dette flow og kaldes på bestemte tidspunkter.
-
-#figure(
-  ```rust
-  let host = req
-      .headers()
-      .get(HOST)
-      .and_then(|v| v.to_str().ok())
-      .map(|h| h.split(':').next().unwrap_or(h).to_string());
-
-  let Some(host) = host else {
-      return err(StatusCode::BAD_REQUEST);
-  };
-  let Some(rules) = self.routes.get(&host) else {
-      return err(StatusCode::NOT_FOUND);
-  };
-
-  let path = req.uri().path().to_string();
-  let Some((_, upstream_base)) = rules.iter().find(|(p, _)| path.starts_with(p.as_str()))
-  else {
-      return err(StatusCode::NOT_FOUND);
-  };
-  ```,
-  caption: [Host-header opslag og longest-prefix route matching (`router.rs`)],
-) <rust-routing>
-
-Når en request ankommer, læses `Host`-headeren (@rust-routing) og porten strippes.
-Hosten slås op i route-tabellen og stien matches mod præfix-regler sorteret efter
-længde, så den mest specifikke regel vinder. Findes ingen match, returneres `404`.
-
-#figure(
-  ```rust
-  let path_and_query = req
-      .uri()
-      .path_and_query()
-      .map(|p| p.as_str())
-      .unwrap_or("/");
-  let upstream_url = format!("{}{}", upstream_base, path_and_query);
-  ```,
-  caption: [Konstruktion af upstream URL (`router.rs`)],
-) <rust-upstream-url>
-
-Upstream-URL'en (@rust-upstream-url) bygges ved at sammensætte base-URL'en fra
-den matchede regel med `path_and_query` fra den indkommende request.
-
-#figure(
-  ```rust
-  for ext in self.extensions.iter() {
-      if !caps::has(ext.capabilities(), caps::ON_REQUEST) {
-          continue;
-      }
-      let result = tokio::task::block_in_place(|| {
-          ext.on_request(&method, &uri, &upstream_url, &req_headers, &working_body)
-      });
-      match result {
-          HookResult::Replace { status, headers, body } => {
-              return Ok(build_response(status, headers, body));
-          }
-          HookResult::Continue { extra_headers: h, body_override } => {
-              extra_headers.extend(h);
-              if let Some(b) = body_override {
-                  working_body = b;
-              }
-          }
-          HookResult::Error(msg) => {
-              eprintln!("plugin on_request error: {msg}");
-              return err(StatusCode::INTERNAL_SERVER_ERROR);
-          }
-      }
-  }
-  ```,
-  caption: [`on_request`-hook loop inden viderestilling (`router.rs`)],
-) <rust-on-request-loop>
-
-Inden requesten sendes videre, køres `on_request`-hooks (@rust-on-request-loop)
-for alle extensions med `ON_REQUEST` i deres bitmask. `Replace` stopper behandlingen
-og sender svaret direkte, `Continue` akkumulerer ekstra headers og body-overrides,
-og `Error` afbryder med en fejl. Selve viderestillingen sker med `hyper`'s `Client`,
-og `on_error`- og `on_response`-hooks køres tilsvarende efter upstream-kaldet.
 
 == FFI implementering
 
