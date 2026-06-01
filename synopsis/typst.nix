@@ -58,8 +58,8 @@
     in
     {
       apps = {
-        build = mkPdfApp (build-script "./main.typ");
-        watch = mkPdfApp (watch-script "./main.typ");
+        build-synopsis = mkPdfApp (build-script "./main.typ");
+        watch-synopsis = mkPdfApp (watch-script "./main.typ");
       };
 
       devShells.typix = typixLib.devShell {

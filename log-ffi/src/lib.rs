@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct FfiPluginBuffer {
     pub ptr: *mut u8,
     pub len: u32,
+    pub cap: u32,
 }
 
 // --- Protocol types ----------------------------------------------------------
@@ -42,8 +43,8 @@ struct PluginResult {
 /// # Safety
 /// Freeing the pointer is an unsafe operation.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn plugin_free(ptr: *mut u8, len: u32) {
-    unsafe { drop(Vec::from_raw_parts(ptr, len as usize, len as usize)) }
+pub unsafe extern "C" fn plugin_free(ptr: *mut u8, len: u32, cap: u32) {
+    unsafe { drop(Vec::from_raw_parts(ptr, len as usize, cap as usize)) }
 }
 
 #[unsafe(no_mangle)]
@@ -93,6 +94,7 @@ pub unsafe extern "C" fn plugin_on_request(ctx_ptr: *const u8, ctx_len: u32) -> 
     let mut bytes = rmp_serde::to_vec_named(&result).unwrap_or_default();
     let ptr = bytes.as_mut_ptr();
     let len = bytes.len() as u32;
+    let cap = bytes.capacity() as u32;
     std::mem::forget(bytes);
-    FfiPluginBuffer { ptr, len }
+    FfiPluginBuffer { ptr, len, cap }
 }

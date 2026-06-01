@@ -365,11 +365,100 @@ om en given capability er sat i bitmasken.
 
 == Simpel reverse proxy
 
-// TODO
+Selve reverse proxyen er implementeret i `src/router.rs` i structen `ProxyRouter`.
+Dens ansvar er at tage en indkommende HTTP-request, slå den op i route-tabellen,
+viderestille den til den rigtige upstream-service og returnere svaret tilbage til
+klienten. Extensions indgår som en del af dette flow og kaldes på bestemte tidspunkter.
 
-*Ikke skrevet endnu*
+#figure(
+  ```rust
+  let host = req
+      .headers()
+      .get(HOST)
+      .and_then(|v| v.to_str().ok())
+      .map(|h| h.split(':').next().unwrap_or(h).to_string());
 
-> Lagde først mærke til at jeg ikke har skrevet dette her til aften (25-05-2026).
+  let Some(host) = host else {
+      return err(StatusCode::BAD_REQUEST);
+  };
+  let Some(rules) = self.routes.get(&host) else {
+      return err(StatusCode::NOT_FOUND);
+  };
+
+  let path = req.uri().path().to_string();
+  let Some((_, upstream_base)) = rules.iter().find(|(p, _)| path.starts_with(p.as_str()))
+  else {
+      return err(StatusCode::NOT_FOUND);
+  };
+  ```,
+  caption: [Host-header opslag og longest-prefix route matching (`router.rs`)],
+) <rust-routing>
+
+Når en request ankommer, læses `Host`-headeren (@rust-routing). Porten strippes
+fra værdien, da konfigurationen kun definerer hostnavn. Er hostet ikke defineret i
+route-tabellen, returneres `404`. Herefter matches stien mod de præfix-regler der
+er defineret for den pågældende host. Reglerne er sorteret efter længden på præfixet,
+hvor den længste er først, så den mest specifikke regel altid vinder. Hvis ingen
+regler matcher, returneres `404` også.
+
+#figure(
+  ```rust
+  let path_and_query = req
+      .uri()
+      .path_and_query()
+      .map(|p| p.as_str())
+      .unwrap_or("/");
+  let upstream_url = format!("{}{}", upstream_base, path_and_query);
+  ```,
+  caption: [Konstruktion af upstream URL (`router.rs`)],
+) <rust-upstream-url>
+
+Upstream-URL'en (@rust-upstream-url) bygges ved at sammensætte base-URL'en fra
+den matchede regel med `path_and_query` fra den indkommende request. En request
+til `http://localhost/api/users?page=2` med en regel der mapper `/api` til
+`http://backend:8080` resulterer altså i `http://backend:8080/api/users?page=2`.
+
+#figure(
+  ```rust
+  for ext in self.extensions.iter() {
+      if !caps::has(ext.capabilities(), caps::ON_REQUEST) {
+          continue;
+      }
+      let result = tokio::task::block_in_place(|| {
+          ext.on_request(&method, &uri, &upstream_url, &req_headers, &working_body)
+      });
+      match result {
+          HookResult::Replace { status, headers, body } => {
+              return Ok(build_response(status, headers, body));
+          }
+          HookResult::Continue { extra_headers: h, body_override } => {
+              extra_headers.extend(h);
+              if let Some(b) = body_override {
+                  working_body = b;
+              }
+          }
+          HookResult::Error(msg) => {
+              eprintln!("plugin on_request error: {msg}");
+              return err(StatusCode::INTERNAL_SERVER_ERROR);
+          }
+      }
+  }
+  ```,
+  caption: [`on_request`-hook loop inden viderestilling (`router.rs`)],
+) <rust-on-request-loop>
+
+Inden requesten sendes videre til upstream, køres `on_request`-hooks for alle
+extensions der har registreret `ON_REQUEST` i deres capability-bitmask (@rust-on-request-loop).
+Extensions der ikke har registreret sig springes over uden yderligere kald.
+Returnerer en extension `Replace`, stoppes behandlingen og svaret sendes direkte
+til klienten. Returnerer den `Continue`, akkumuleres eventuelle ekstra headers og
+body-overrides på tværs af alle extensions, inden de tilføjes til den udgående
+request. `Host`-headeren fjernes herefter, da den ellers ville forstyrre upstream.
+
+Selve viderestillingen sker med `hyper`'s `Client`. Fejler kaldet, eller returnerer
+upstream et 5xx-svar, køres `on_error`-hooks. Lykkes kaldet, køres `on_response`-hooks
+for extensions der har registreret `ON_RESPONSE`, og det endelige svar bygges med
+eventuelle ekstra headers og en evt. modificeret body.
 
 == FFI implementering
 
@@ -426,18 +515,19 @@ til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
   pub struct FfiPluginBuffer {
       pub ptr: *mut u8,
       pub len: u32,
+      pub cap: u32,
   }
   ```,
   caption: [`FfiPluginBuffer` struct],
 ) <rust-ffi-plugin-buffer>
 
-Efter af denne buffer er blevet læst og decoded til en Rust struct der er nemmere
-at arbejde med, skal denne buffer frigøres i hukommelsen så vi ikke får et memory
-leak. Det gør vi med `fn_free` (defineret i `FfiExtension`), hvilket er en funktion der skal
-implementeres i alle ffi extensions. `fn_free` sørger så for at frigøre hukommelsen der
-er blevet allokeret for `FfiPluginBuffer`. Vi arbejder altså med to forskellige
-grader af tillid, at applikationen anmoder om at frigøre hukommelsen korrekt og
-at extensionen så faktisk frigører hukommelsen korrekt.
+`FfiPluginBuffer` på @rust-ffi-plugin-buffer indeholder tre felter: `ptr`, `len` og
+`cap`. I Rust er `len` og `cap` ikke nødvendigvis ens, da allokatoren kan have
+reserveret en større blok end det der faktisk blev skrevet — at rekonstruere `Vec`'en
+med `len` som kapacitet ville derfor være undefined behaviour. `cap` krydser
+FFI-grænsen så `fn_free` (også set på @rust-ffi-extension) altid kan frigøre præcis
+hvad der blev allokeret. Vi arbejder altså med to grader af tillid: at applikationen
+anmoder om at frigøre hukommelsen korrekt, og at extensionen faktisk gør det.
 
 Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
 symboler i vores extension for specifikt FFI implementationen og sørger også for at
@@ -551,17 +641,16 @@ osv.
 
 == Benchmarks
 
-Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha`. Benchmarks
-kan blive kørt ved at køre `cargo make bench-all`. Alle resultater vil
-blive skrevet til `results/` mappen i roden af repositoriet. Disse resultater vil
-hjælpe med at besvare underspørgsmål 3. Herunder vil resultaterne vises i form af
-grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst`
-@typst-app. #footnote[
-  Alle benchmarks er kørt på en bærbar
-  laptop (ASUS ZenBook model UM431D fra 2020) med Linux (NixOS). MacOS og Windows
-  (og dermed WSL) er ikke testet og jeg kan derfor ikke garantere at resultaterne
-  kan repoduceres på disse styresystemer. På trods af dette er resultaterne så
-  klare på dette system at jeg antager der vil være samme tendens på andre systemer.
+Benchmarks er blevet implementeret ved hjælp af `hyperfine` og `oha` og kan køres
+med `cargo make bench-all`. Alle resultater skrives til `results/`-mappen i roden
+af repositoriet. En simpel demo-server kørte lokalt under alle tests, så
+netværkslatency ikke påvirker resultaterne. Herunder præsenteres resultaterne som
+grafer genereret med `lilaq` @lilaq-homepage, et library til `Typst` @typst-app. #footnote[
+  Alle benchmarks er kørt på en bærbar laptop (ASUS ZenBook model UM431D fra 2020)
+  med Linux (NixOS). MacOS og Windows (og dermed WSL) er ikke testet og jeg kan
+  derfor ikke garantere at resultaterne kan reproduceres på disse styresystemer.
+  På trods af dette er resultaterne så klare på dette system at jeg antager der
+  vil være samme tendens på andre systemer.
 ]
 
 #let _s_noplugins = json("results/startup_no-plugins.json").results.at(0)
@@ -588,10 +677,10 @@ grafer. Graferne er genereret med `lilaq` @lilaq-homepage, et library til `Typst
     lq.plot((1,), (s_means.at(1),), yerr: (s_stddevs.at(1),), stroke: none, mark: none, color: black),
     lq.plot((2,), (s_means.at(2),), yerr: (s_stddevs.at(2),), stroke: none, mark: none, color: black),
   ),
-  caption: [Opstartstid for de tre varianter (gennemsnit ± stddev, n=10) (lavere er bedre)],
+  caption: [Opstartstid (TTFB) for de tre varianter, `hyperfine --warmup 2 --runs 10`, lokal demo-server, gennemsnit ± stddev (lavere er bedre)],
 ) <fig-startup>
 
-På <fig-startup> ser vi at FFI næsten ikke tilføjer overhead til opstartstiden,
+På @fig-startup ser vi at FFI næsten ikke tilføjer overhead til opstartstiden (TTFB),
 mens WASM er 4,4 gange langsommere at starte. Dette er primært fordi `wasmtime`
 JIT-kompilerer modulet ved load.
 
@@ -637,7 +726,7 @@ JIT-kompilerer modulet ved load.
       label: [wasm],
     ),
   ),
-  caption: [Svartidspercentiler (p50, p90, p99) under load (10 000 requests) (lavere er bedre)],
+  caption: [Svartidspercentiler (p50, p90, p99), `oha -n 10000 -c 50`, lokal demo-server, ingen warm-up (lavere er bedre)],
 ) <fig-load-latency>
 
 #figure(
@@ -656,7 +745,7 @@ JIT-kompilerer modulet ved load.
     lq.plot((1,), (_l_ffi.rps.mean,), yerr: (_l_ffi.rps.stddev,), stroke: none, mark: none, color: black),
     lq.plot((2,), (_l_wasm.rps.mean,), yerr: (_l_wasm.rps.stddev,), stroke: none, mark: none, color: black),
   ),
-  caption: [Gennemsnitlig requests/sek under load (gennemsnit ± stddev) (højere er bedre)],
+  caption: [Gennemsnitlig requests/sek under load, `oha -n 10000 -c 50`, lokal demo-server, ingen warm-up, gennemsnit ± stddev (højere er bedre)],
 ) <fig-load-rps>
 
 På @fig-load-rps ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
@@ -685,7 +774,12 @@ på `FFI` og `WASM`.
     lq.bar((1,), (mem_ffi_mb,), width: 0.6, fill: green.lighten(20%)),
     lq.bar((2,), (mem_wasm_mb,), width: 0.6, fill: red.lighten(20%)),
   ),
-  caption: [Peak RSS-hukommelsesforbrug for de tre varianter (lavere er bedre)],
+  caption: [
+    Peak VmRSS #footnote[Resident Set Size, den fysisk tilgængelige hukommelse en
+      applikation bruger, hvor Swap-space og lign. ikke er inkluderet @linux-proc-pid-statm @linux-proc-pid-status.
+    ] under `oha`-kørslen, samplet fra `/proc/$PID/status` @linux-proc-pid-status
+    hvert 0,5 sek., lokal demo-server (lavere er bedre)
+  ],
 ) <fig-memory>
 
 Hukommelsesforbruget er marginalt for FFI (+564 kB), men markant større for
@@ -707,8 +801,6 @@ Vi kan konkludere at det er muligt at designe en udvidelig reverse proxy i Rust,
 der understøtter både `FFI` og `WASM` som plugin-mekanismer, og at de to tilgange
 adskiller sig markant i implementeringskompleksitet, performance og ressourceforbrug.
 
-1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis WASM og FFI?
-
 En reverse proxy kan udvides relativt hurtigt ved brug af eksisterende crates i
 Rust-økosystemet. De essentielle crates der sørger for at selve reverse proxyen
 fungerer er: `tokio`, `hyper`, `http-body-util`, `hyper-util` og `bytes`.
@@ -723,9 +815,6 @@ Noget af det første reverse proxyen gør når den starter, er at parse konfigur
 og derefter loade de extensions der er defineret i samme konfiguration. Extensionsne
 kan "subscribe" på forskellige hooks via en bitmask, og proxyen kalder kun de extensions
 der har registreret sig på en given hook.
-
-2. Hvilke forskelle er der mellem `WASM` og `FFI` i forhold til kodekompleksitet,
-  læsbarhed og udviklingsoplevelse?
 
 `FFI`-implementeringen udgør ca. 200 linjer kode og `WASM`-implementeringen ca. 300.
 Forskellen skyldes bl.a. at `WASM` kræver mere boilerplate, fx ved brug af en `Mutex`-wrapper
@@ -745,9 +834,6 @@ allerede kender til. `WASM` kræver viden og forståelse for hvordan `wasmtime`'
 koncepter som `Store`, `Linker` og `Engine` fungerer, men resulterer dog i et sikrere
 API hvor fejl primært fanges ved kompilering frem for runtime.
 
-3. Hvordan adskiller WASM- og FFI-baserede udvidelser sig i forhold til svartid,
-  throughput og hukommelsesforbrug?
-
 Baseret på benchmarksne vinder `FFI` i alle kategorier. Opstartstiden er næsten
 identisk med baselinjen, mens `WASM` er omkring 4,4 gange langsommere at starte,
 primært fordi `WASM` JIT-kompilerer modulet ved load. Throughput falder med 28,8%
@@ -763,14 +849,6 @@ og at den reelle forskel mellem `FFI` og en native extension sandsynligvis ville
 være endnu mindre. Det ændrer dog ikke konklusionen, da `FFI` slår `WASM` i alle
 benchmarks, men forklarer den større, uforudsete forskel på throughput mellem `FFI`
 og `no-plugins` som set på @fig-load-rps.
-
-Disse delkonklusioner hjælper os til at besvare den overordnede problemformulering.
-
----
-
-Hvordan kan en simpel reverse proxy i Rust designes til at understøtte udvidelser
-via `WASM` og `FFI`, og hvordan adskiller de to tilgange sig i forhold til implementering,
-udviklingskompleksitet, performance og ressourceforbrug?
 
 Designmæssigt er svaret det fælles `Extension`-trait. Ved at lade begge tilgange
 implementere ét fælles interface kan reverse proxyen understøtte begge dele, uden
@@ -790,17 +868,27 @@ ikke hvad de er designet til. Benchmarksne sammenligner altså ikke to ligeværd
 løsninger på samme problem, men to teknologier med forskelligt ophav, brugt til
 samme formål.
 
+`WASM` er derfor ikke dårligere end `FFI`, men et bevidst tradeoff. Forskellen er
+fundamental: `FFI`-plugins kører i samme adresserum som host-applikationen og har
+dermed i princippet ubegrænset adgang til hukommelse og OS-funktioner uden nogen
+begrænsning fra runtimen. `WASM`-moduler kører derimod i et isoleret sandbox adskilt
+fra hostens adresserum, og kan kun kalde de host-funktioner der eksplicit er eksponeret
+via `wasmtime`'s `Linker`, hvilket i dette projekt udelukkende er `env::log`. Alt andet er
+utilgængeligt for modulet. Man betaler altså en runtime-pris for denne garanti.
+Valget afhænger ikke af hvilken teknologi der er "bedst", men af tillidsmodellen:
+en latency-kritisk service med betroede extensions peger mod `FFI`, mens en platform
+der kører vilkårlig tredjeparts kode sagtens kan bære `WASM`'s overhead til gengæld
+for sandboxing.
+
 == Perspektivering
 
-`FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation.
-Dette valg er ikke unik for reverse proxies, men for alle situation hvor en applikation
-skal køre ekstern kode. Med `FFI` accepterer man at en extension er udviklet af en
-betroet udvikler og man belønnes med minimalt overhead. Med `WASM` antager man det
-modsatte og betaler en runtime-pris for denne garanti. Da extension-økosystem vokser
-og tredjeparsudvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
-Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere `WASM`'s boilerplate
-og overhead, hvilket på sigt kan ændre denne balance. Men den grundlæggende filosofiske
-forskel på `FFI` og `WASM` vil altid forblive.
+`FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation, og
+dette valg er ikke unikt for reverse proxies, men for alle situationer hvor en
+applikation skal køre ekstern kode. Da extension-økosystemer vokser og tredjeparts-
+udvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
+Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere
+`WASM`'s boilerplate og overhead, hvilket på sigt kan ændre denne balance. Men
+den grundlæggende filosofiske forskel på `FFI` og `WASM` vil altid forblive.
 
 = Refleksion
 

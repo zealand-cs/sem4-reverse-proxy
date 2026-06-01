@@ -6,10 +6,15 @@ use super::{Extension, HookResult, LoadError, caps, protocol};
 
 /// `#[repr(C)]` buffer returned by plugin hook functions.
 /// The plugin allocates this on the heap; the host reads it then calls `plugin_free`.
+///
+/// `cap` must be the original Vec capacity so that `plugin_free` can reconstruct
+/// the Vec with the correct allocator layout. Passing `len` as the capacity is
+/// undefined behaviour if the allocator used a larger block.
 #[repr(C)]
 pub struct FfiPluginBuffer {
     pub ptr: *mut u8,
     pub len: u32,
+    pub cap: u32,
 }
 
 // Type aliases for the symbols we load from the shared library.
@@ -19,7 +24,7 @@ type FnCapabilities = unsafe extern "C" fn() -> u32;
 type FnOnLoad = unsafe extern "C" fn();
 type FnOnUnload = unsafe extern "C" fn();
 type FnHook = unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer;
-type FnFree = unsafe extern "C" fn(*mut u8, u32);
+type FnFree = unsafe extern "C" fn(*mut u8, u32, u32);
 
 #[allow(dead_code)]
 pub struct FfiExtension {
@@ -35,7 +40,7 @@ pub struct FfiExtension {
     fn_on_request: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
     fn_on_response: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
     fn_on_error: Option<unsafe extern "C" fn(*const u8, u32) -> FfiPluginBuffer>,
-    fn_free: unsafe extern "C" fn(*mut u8, u32),
+    fn_free: unsafe extern "C" fn(*mut u8, u32, u32),
 }
 
 // SAFETY: The library is only ever accessed through the stored function pointers,
@@ -130,7 +135,7 @@ impl FfiExtension {
         let result_bytes = unsafe { std::slice::from_raw_parts(buf.ptr, buf.len as usize) };
         let result = protocol::decode_result(result_bytes);
 
-        unsafe { (self.fn_free)(buf.ptr, buf.len) };
+        unsafe { (self.fn_free)(buf.ptr, buf.len, buf.cap) };
 
         result
     }
