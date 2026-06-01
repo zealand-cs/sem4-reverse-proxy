@@ -906,28 +906,25 @@ den grundlæggende filosofiske forskel på `FFI` og `WASM` vil altid forblive.
 // > lært af det.
 
 Metoden byggede på at de to test-extensions, `log-ffi` og `log-wasm`, var funktionelt
-identiske, så eventuelle forskellige i benchmarks udelukkende skyldtes integrationen
+identiske, så eventuelle forskelle i benchmarks udelukkende skyldtes integrationen
 i applikationen. Dette holder i store træk, men som nævnt i konklusionen bærer
 `FFI`-implementeringen et serialiseringsoverhead den ikke behøver. En mere præcis
-sammenligning ville have endnu en variant, hvor `FFI` bruger rå pointere direkte.
-Dette ville have isoleret overhead fra integrationen og givet et bedre billede af
-`FFI`'s ydelse.
+sammenligning ville have inkluderet en variant hvor `FFI` bruger rå pointere direkte,
+hvilket ville have isoleret serialiseringsoverheadet og givet et klarere billede af
+`FFI`'s reelle ydelse.
 
-Benchmarksne er desuden kun blevet kørt på én maskine, og resultaterne kan nødvendigvis
-kke reproduceres på andre styresystemer. Dette har dog størst betydning for selve
-tallene, men da alle tre varianter af applikationen er kørt under identiske forhold
-på hver maskine, bør de relative forskelle mellem `no-plugins`, `FFI` og `WASM`
-være omtrent de samme.
+Benchmarksne er kun kørt på én maskine, og resultaterne kan ikke nødvendigvis
+reproduceres på andre styresystemer. Det har dog størst betydning for de absolutte
+tal, da alle tre varianter er kørt under identiske forhold, og de relative forskelle
+mellem `no-plugins`, `FFI` og `WASM` bør derfor være omtrent de samme uanset platform.
 
-Noget der gør analysen upræcis i den virkelige verden mht. mængden af kode i extensionsne
-skal det også noteres at rigtig mange projekter stiller libraries til rådighed der
-gør implementeringen nemmere for understøttede sprog. For dette projekt ville dette
-bl.a. inkludere vores protokol-typer og seraliseringen af dem, og kunne fx, for
-Rust, sørge for en macro der implementerer `plugin_name` og `plugin_version` baseret
-på projektets Cargo.toml name og version attributer. Dette vil mindske mængden af
-kode, sørge for at implementeringen altid er korrekt og samtidigt er det nemmere
-at arbejde med for slut-udvikleren, da implementings-specifikke detaljer er mindre
-vigtige.
+Analysen af kodekompleksitet afspejler heller ikke den virkelige verden fuldt ud. I
+praksis stiller mange projekter libraries til rådighed der reducerer boilerplate for
+understøttede sprog. For dette projekt kunne det fx inkludere protokol-typer og
+serialisering heraf, samt en macro der implementerer `plugin_name` og `plugin_version`
+ud fra projektets `Cargo.toml`. Det ville mindske mængden af kode, sikre korrekt
+implementering og gøre det nemmere for slutudvikleren, da implementeringsspecifikke
+detaljer skjules bag en abstraktion.
 
 
 // - Liste alle kilder korrekt
