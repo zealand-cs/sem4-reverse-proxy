@@ -13,7 +13,7 @@
     .len(),
 )
 
-#show: word-count.with(counter: string-word-count, exclude: (raw,))
+#show: word-count.with(counter: string-word-count, exclude: (raw.where(block: true),))
 #set text(lang: "da")
 #let normalsider = context (str(calc.round(state("wordometer").final().characters / 2400, digits: 1)).replace(".", ","))
 #show: synopsis.with(
