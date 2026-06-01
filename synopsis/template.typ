@@ -53,6 +53,10 @@
         .flatten(),
     ))
   }
+  align(center, text(
+    size: 0.75em,
+    style: "italic",
+  )[Kodeblokke er ikke medregnet i det samlede antal anslag])
 }
 
 #let synopsis(
