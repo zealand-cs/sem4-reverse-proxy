@@ -243,7 +243,7 @@ rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udfør
   table.footer([*I alt*], [*73 timer*]),
 )
 
-= Arbejdet
+= Arbejdet #footnote[Kodeblokke er ikke medregnet i det samlede antal anslag.]
 
 // - Beskriv hvad du har gjort for at besvare dine spørgsmål
 // - Vis både teori og praktisk arbejde
