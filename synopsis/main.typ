@@ -311,12 +311,10 @@ Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige f
   caption: [`Extension` trait (kommentarer fjernet)],
 ) <rust-extension-trait>
 
-@rust-extension-trait viser selve `Extension` trait-definitionen. De to metoder
-`name` og `version` returnerer simpel metadata om extensionen. `capabilities` returnerer
-en bitmask der angiver hvilke hooks extensionen abonnerer på, og `has_capability` er
-en hjælpemetode der bl.a. hjælper proxyen til at undgå unødvendige kald til extensions
-der ikke lytter på en specifik hook. Traiten implementerer automatisk `has_capability`,
-som set på kode-stykket.
+@rust-extension-trait viser trait-definitionen. `name` og `version` returnerer
+metadata, `capabilities` returnerer en bitmask der angiver hvilke hooks extensionen
+abonnerer på, og `has_capability` (automatisk implementeret af traiten) hjælper
+proxyen med at undgå unødvendige kald.
 
 #figure(
   ```rust
@@ -337,10 +335,8 @@ som set på kode-stykket.
 ) <rust-hook-result-enum>
 
 HookResult-enumen (@rust-hook-result-enum) bruges som returværdi fra alle hook-metoder.
-`Continue` signalerer at requesten/responsen skal fortsætte som normalt, evt. med
-ændrede headers eller en body-override. `Replace` giver extensionen mulighed for at
-returnere et helt nyt svar, mens `Error` indikerer at extensionen fejlede og at
-proxyen skal håndtere dette.
+`Continue` signalerer at requesten skal fortsætte, evt. med ændrede headers eller
+body. `Replace` returnerer et helt nyt svar, og `Error` indikerer en fejl.
 
 #figure(
   ```rust
@@ -357,11 +353,8 @@ proxyen skal håndtere dette.
   caption: [`caps` modul med bitmasks der beskriver capabilities en extension understøtter],
 ) <rust-caps-module>
 
-Bitmask-konstanterne i `caps`-modulet (@rust-caps-module) bruges til at komponere
-capabilities for en extension. En extension der kun vil reagere på requests sætter
-`ON_REQUEST`, mens en extension der vil reagere på både requests og responses sætter
-`ON_REQUEST | ON_RESPONSE`. `has` bruges internt i `has_capability` til at teste
-om en given capability er sat i bitmasken.
+Capabilities komponeres med bitmask-konstanter i `caps`-modulet (@rust-caps-module),
+fx `ON_REQUEST | ON_RESPONSE` for en extension der vil reagere på begge.
 
 == Simpel reverse proxy
 
@@ -394,12 +387,9 @@ klienten. Extensions indgår som en del af dette flow og kaldes på bestemte tid
   caption: [Host-header opslag og longest-prefix route matching (`router.rs`)],
 ) <rust-routing>
 
-Når en request ankommer, læses `Host`-headeren (@rust-routing). Porten strippes
-fra værdien, da konfigurationen kun definerer hostnavn. Er hostet ikke defineret i
-route-tabellen, returneres `404`. Herefter matches stien mod de præfix-regler der
-er defineret for den pågældende host. Reglerne er sorteret efter længden på præfixet,
-hvor den længste er først, så den mest specifikke regel altid vinder. Hvis ingen
-regler matcher, returneres `404` også.
+Når en request ankommer, læses `Host`-headeren (@rust-routing) og porten strippes.
+Hosten slås op i route-tabellen og stien matches mod præfix-regler sorteret efter
+længde, så den mest specifikke regel vinder. Findes ingen match, returneres `404`.
 
 #figure(
   ```rust
@@ -414,9 +404,7 @@ regler matcher, returneres `404` også.
 ) <rust-upstream-url>
 
 Upstream-URL'en (@rust-upstream-url) bygges ved at sammensætte base-URL'en fra
-den matchede regel med `path_and_query` fra den indkommende request. En request
-til `http://localhost/api/users?page=2` med en regel der mapper `/api` til
-`http://backend:8080` resulterer altså i `http://backend:8080/api/users?page=2`.
+den matchede regel med `path_and_query` fra den indkommende request.
 
 #figure(
   ```rust
@@ -447,18 +435,11 @@ til `http://localhost/api/users?page=2` med en regel der mapper `/api` til
   caption: [`on_request`-hook loop inden viderestilling (`router.rs`)],
 ) <rust-on-request-loop>
 
-Inden requesten sendes videre til upstream, køres `on_request`-hooks for alle
-extensions der har registreret `ON_REQUEST` i deres capability-bitmask (@rust-on-request-loop).
-Extensions der ikke har registreret sig springes over uden yderligere kald.
-Returnerer en extension `Replace`, stoppes behandlingen og svaret sendes direkte
-til klienten. Returnerer den `Continue`, akkumuleres eventuelle ekstra headers og
-body-overrides på tværs af alle extensions, inden de tilføjes til den udgående
-request. `Host`-headeren fjernes herefter, da den ellers ville forstyrre upstream.
-
-Selve viderestillingen sker med `hyper`'s `Client`. Fejler kaldet, eller returnerer
-upstream et 5xx-svar, køres `on_error`-hooks. Lykkes kaldet, køres `on_response`-hooks
-for extensions der har registreret `ON_RESPONSE`, og det endelige svar bygges med
-eventuelle ekstra headers og en evt. modificeret body.
+Inden requesten sendes videre, køres `on_request`-hooks (@rust-on-request-loop)
+for alle extensions med `ON_REQUEST` i deres bitmask. `Replace` stopper behandlingen
+og sender svaret direkte, `Continue` akkumulerer ekstra headers og body-overrides,
+og `Error` afbryder med en fejl. Selve viderestillingen sker med `hyper`'s `Client`,
+og `on_error`- og `on_response`-hooks køres tilsvarende efter upstream-kaldet.
 
 == FFI implementering
 
@@ -485,29 +466,15 @@ implementerer `Extension` trait.
   caption: "FfiExtension struct",
 ) <rust-ffi-extension>
 
-På @rust-ffi-extension ses at `FfiExtension` bl.a. indeholder `Library` fra
-`libloading` som er, ifølge dokumentationen, "et loaded dynamisk library". Selvom
-denne property ikke bliver brugt i koden er det nødvendigt at opbevare den, da `Library`
-implementerer `Drop`-traiten der kalder `dlclose` på Linux systemet, hvilket er
-en funktion implementeret i styresystemet, der unloader et dynamic library @dlclose-linux-man.
-Fra Linux man pages, omkring `dlclose`:
+`FfiExtension` (@rust-ffi-extension) indeholder bl.a. `Library` fra `libloading`.
+Selvom denne property ikke bruges direkte, er det nødvendigt at opbevare den, da
+`Library` implementerer `Drop`-traiten der kalder `dlclose` @dlclose-linux-man og
+dermed unloader det dynamiske library. Uden `Library` i structen ville symbolreferencerne
+blive ugyldige når det underliggende library unloades @rust-drop-trait.
 
-"Once a symbol table handle has been closed [with `dlclose`], an application should
-assume that any symbols (function identifiers and data object
-identifiers) made visible using handle, are no longer available to
-the process."
-
-For os betyder dette at selvom vi har fået referencerne til vores symboler i extensionen,
-og at Rust's compiler ikke brokker sig, kan vi altså ikke antage at symbolerne stadig
-eksisterer, efter at `Drop`-traiten bliver kaldt, hvilket den gør når `Library` ryger
-ud af gyldigt scope @rust-drop-trait.
-
-Data fra hooks der bliver kaldt i en extension, bliver returneret i form af `FfiPluginBuffer`
-(se @rust-ffi-plugin-buffer). I `C` er variable længder af data (fx `string`)
-beskrevet med en pointer og en længde. Det samme gør vi her for at læse bytes fra
-en specifik lokation i hukommelsen. Det bytes der ligger på denne lokation i hukommelsen
-bliver læst og derefter decoded, som defineret i `protocol`. Dette bliver offloadet
-til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
+Hook-returværdier sendes som en `FfiPluginBuffer` (@rust-ffi-plugin-buffer),
+der ligesom i `C` beskriver data med en pointer og en længde. Bytes læses fra
+hukommelsen og decodes via `rmp_serde`.
 
 #figure(
   ```rust
@@ -521,34 +488,22 @@ til `rmp_serde` og er derfor ikke i dette projekts scope at implementere.
   caption: [`FfiPluginBuffer` struct],
 ) <rust-ffi-plugin-buffer>
 
-`FfiPluginBuffer` på @rust-ffi-plugin-buffer indeholder tre felter: `ptr`, `len` og
-`cap`. I Rust er `len` og `cap` ikke nødvendigvis ens, da allokatoren kan have
-reserveret en større blok end det der faktisk blev skrevet — at rekonstruere `Vec`'en
-med `len` som kapacitet ville derfor være undefined behaviour. `cap` krydser
-FFI-grænsen så `fn_free` (også set på @rust-ffi-extension) altid kan frigøre præcis
-hvad der blev allokeret. Vi arbejder altså med to grader af tillid: at applikationen
-anmoder om at frigøre hukommelsen korrekt, og at extensionen faktisk gør det.
-
-Implementeringen af `Extension` for `FfiExtension` sørger for at kalde de rigtige
-symboler i vores extension for specifikt FFI implementationen og sørger også for at
-applikationen har Rust-typer at arbejde med, i stedet for rå `C` typer @extension-trait.
-Den sørger også for at kalde `fn_free` på det rigtige tidspunkt.
+`FfiPluginBuffer` indeholder `ptr`, `len` og `cap`. `cap` er nødvendig fordi
+Rust's allokator kan reservere en større blok end `len`, og `fn_free` skal frigøre
+præcis hvad der blev allokeret. Implementeringen af `Extension` for `FfiExtension`
+konverterer de rå `C`-typer til Rust-typer @extension-trait og sørger for at kalde
+`fn_free` på det rigtige tidspunkt.
 
 == WASM implementering
 
 Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og indeholder alt
 kode specifikt til implementering af WASM.
 
-Nogle af ideerne bag `WASM` implementeringen minder om `FFI`-implementeringen, men der er stadig
-væsentlige forskelle. Fx tillader `WASM` at give adgang til en begrænset del af
-værtens hukommelse, hvad `wasmtime` har kaldt en store, der fx kan håndtere adgange
-til databaser eller anden state en applikation måttet have brug for at eksponere
-til extensions. En anden forskel er at `WASM` implementeringen består af to essentielle
-structs. Da `wasmtime`'s Store er !Sync @rust-lang-send-and-sync, hvilket gør at
-den ikke kan bruges i async sammenhænge da den derved skal deles mellem threads,
-wrapper vi den i en anden struct hvor den bliver puttet i en `Mutex`. Hvordan dette
-er gjort, ses i hhv. `WasmExtensionInstance` (@rust-wasm-extension-instance-struct)
-og `WasmPlugin` (@rust-wasm-plugin-struct).
+`WASM`-implementeringen består af to structs. Da `wasmtime`'s `Store` er `!Sync`
+@rust-lang-send-and-sync og derfor ikke kan deles mellem threads, wrappes den i en
+`Mutex` i `WasmPlugin` (@rust-wasm-plugin-struct), mens selve instansen med
+hook-funktioner og hukommelse ligger i `WasmExtensionInstance`
+(@rust-wasm-extension-instance-struct).
 
 #figure(
   ```rust
@@ -597,47 +552,24 @@ i samme adresserum som applikationen og kan i princippet kalde hvad som helst.
 `WASM`'s model er dermed mere strikt, men giver kontrol over hvad extensions har
 adgang til.
 
-Den mest centrale del af `WASM` implementeringen er `call_hook` metoden på `WasmExtensionInstance`,
-der håndterer kommunikationen med et `WASM`-modul når en hook kaldes. Fordi modulet
-kører i sin egen hukommelse, kan man ikke nøjes med at sende en Rust-reference til
-det. I stedet foregår dette kald i nogle trin:
+Den mest centrale del af `WASM`-implementeringen er `call_hook` på `WasmExtensionInstance`.
+Fordi modulet kører i sin egen hukommelse, kræver et hook-kald flere trin: allokér
+en buffer i modulet med `plugin_alloc`, kopiér den serialiserede kontekst ind, kald
+hook-funktionen med `(ptr, len)`, læs resultatet ud og frigør med `plugin_free`.
+Resultatet returneres som én `i64` @wasm-i64-return. Til sammenligning kalder `FFI`
+hook-funktionen direkte og modtager en `FfiPluginBuffer` tilbage.
 
-1. Alloker ved at kalde `plugin_alloc(len)` i `WASM`-modulet og få en pointer tilbage
-  til en buffer i modulet hukommelse.
-
-2. Skriv til den allokerede adresse ved at kopiere den serialiserede kontekst buffer fra host-applikationens
-  hukommelse ind i `WASM`-modulets hukommelse.
-
-3. Kald hook-funktionen med `(ptr, len)`. Resultatet returneres som én `i64` @wasm-i64-return.
-
-4. Læs resultat-bytes ud af `WASM`-modulets hukommelse.
-
-5. Frigør hukommelsen ved at kalde `plugin_free` inde i modulet for
-  at frigøre bufferen.
-
-Sammenlignet med `FFI`'s `call_hook` er dette mere omstændigt. `FFI`-implementeringen
-kalder hook-funktionen direkte, modtager en `FfiPluginBuffer` med pointer og længde
-tilbage, læser bytes og frigører derefter hukommelsen med `fn_free`.
-
-En stor forskel på de to implementeringer er mængden af `unsafe`-kode. `WASM`-implementeringen
-indeholder ikke nogen runtime `unsafe`-kode da `wasmtime` kun eksponerer et fuldstændigt sikkert API,
-og al kommunikation med `WASM`-modulet sker kun gennem `wasmtime`. Derimod indeholder
-`FFI`-implementeringen ca. otte runtime `unsafe` blokke. Dette er dog ikke nødvendigvis
-en svaghed ved `FFI`-implementeringen, da det er uundgåeligt når man arbejder med
-native kode. Dette viser dog at `WASM`'s sandboxing også afspejles i selve koden.
+En stor forskel er mængden af `unsafe`-kode. `WASM`-implementeringen indeholder ingen
+runtime `unsafe`-blokke da `wasmtime` eksponerer et fuldstændigt sikkert API. `FFI`-
+implementeringen indeholder ca. otte `unsafe`-blokke, hvilket er uundgåeligt ved
+direkte arbejde med native kode. `WASM`'s sandboxing afspejles altså i selve koden.
 
 == Test-extensions
 
-For at kunne sammenligne parametrene på `FFI` og `WASM`, er to extensions med
-identisk funktionalitet blevet skrevet: `log-ffi` og `log-wasm` hhv. `FFI` og `WASM`
-som target. Begge extensions registrerer `ON_REQUEST`, deserialiserer konteksten
-og printer diverse detaljer om requesten i terminalen, og returnerer en `Continue`.
-
-Målet med disse to plugins er ikke at teste performance af WASM kode og FFI kode selv,
-men i stedet forbindelserne mellem hovedapplikationen og extensionsne og se hvor meget
-overhead dette bringer. Derfor er selve extensionsne meget simple uden nogen brugbar
-funktionalitet for en slutbruger, da loggingen ikke kan customizes, skrives til filer
-osv.
+To extensions med identisk funktionalitet er skrevet: `log-ffi` og `log-wasm`. Begge
+registrerer `ON_REQUEST`, deserialiserer konteksten, printer request-detaljer og
+returnerer `Continue`. Målet er ikke at teste selve extension-kodens performance,
+men overheadet fra integrationen mellem hovedapplikationen og extensionsne.
 
 == Benchmarks
 
