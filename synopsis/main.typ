@@ -217,27 +217,30 @@ til svartider, throughput og hukommelsesforbrug.
 Her er en tabel med estimeret tid per opgave. Opgaverne er skrevet i en estimeret
 rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udført.
 
-// TODO udfyld hele dette afsnit
-
-*Ikke komplet endnu*
-
 #table(
-  columns: (1fr, auto, auto),
+  columns: (1fr, auto),
   inset: 8pt,
   align: horizon,
-  table.header([*Aktivitet*], [*Estimeret tid*], [*Note*]),
-  [Planlægning], [0,5 dag], [],
-  [Introduktion og motivation], [0,5 dag], [],
-  [Problemformulering], [1 dag], [Inkl. bekræftelse],
-  [Basic Reverse Proxy], [1 dag], [],
-  [Config parsing for reverse proxyen], [0,5 dag], [],
-  [WASM og FFI protocol og integration], [2 dage], [],
-  [Test server reverse proxy kan forwarde til], [0,5 dag], [],
-  [Benchmarking], [1 dag], [],
-  [Undersøgelse af om spørgsmålene er besvaret], [2 dage], [],
-  [Reflektion], [1 dag], [],
-  [Præsentation til mundtlig eksamination], [1 dag], [],
-  [Forberedelse til mundtlig eksamen], [3 dage], [],
+  table.header([*Aktivitet*], [*Estimeret tid*]),
+  [Planlægning og research], [3 timer],
+  [Opsætning af Rust-projekt, Nix og tooling], [2 timer],
+  [Synopsis: Introduktion, motivation og problemformulering], [5 timer],
+  [Synopsis: Metodeafsnit], [3 timer],
+  [Implementering: Konfigurationsparsing og routing], [5 timer],
+  [Implementering: Extension trait og MessagePack-protokol], [4 timer],
+  [Implementering: FFI-integration med `libloading`], [6 timer],
+  [Implementering: WASM-integration med `wasmtime`], [8 timer],
+  [Implementering: Demo-server], [2 timer],
+  [Implementering: Test-extensions (`log-ffi`, `log-wasm`)], [3 timer],
+  [Benchmarking-setup og kørsel (`hyperfine`, `oha`)], [5 timer],
+  [Synopsis: Reverse proxy-afsnit], [3 timer],
+  [Synopsis: FFI- og WASM-afsnit], [6 timer],
+  [Synopsis: Benchmarkanalyse og grafer], [4 timer],
+  [Synopsis: Konklusion og perspektivering], [4 timer],
+  [Synopsis: Refleksion], [2 timer],
+  [Rettelser og forbedringer efter feedback], [3 timer],
+  [Forberedelse til mundtlig eksamen], [5 timer],
+  table.footer([*I alt*], [*73 timer*]),
 )
 
 = Arbejdet
