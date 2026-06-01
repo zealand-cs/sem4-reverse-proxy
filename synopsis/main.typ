@@ -680,9 +680,11 @@ grafer genereret med `lilaq` @lilaq-homepage, et library til `Typst` @typst-app.
   caption: [Opstartstid (TTFB) for de tre varianter, `hyperfine --warmup 2 --runs 10`, lokal demo-server, gennemsnit ± stddev (lavere er bedre)],
 ) <fig-startup>
 
-På @fig-startup ser vi at FFI næsten ikke tilføjer overhead til opstartstiden (TTFB),
-mens WASM er 4,4 gange langsommere at starte. Dette er primært fordi `wasmtime`
-JIT-kompilerer modulet ved load.
+@fig-startup viser TTFB (Time To First Byte), altså tiden fra proxyen startes til den
+returnerer sit første HTTP-svar. Benchmarket starter proxyen, poller med `curl` indtil
+det første succesfulde svar ankommer og måler den samlede tid med `hyperfine`. FFI
+tilføjer næsten ikke overhead, mens WASM er 4,4 gange langsommere at starte. Dette
+er primært fordi `wasmtime` JIT-kompilerer modulet ved load.
 
 #let _l_noplugins = json("results/load_no-plugins.json")
 #let _l_ffi = json("results/load_ffi.json")
