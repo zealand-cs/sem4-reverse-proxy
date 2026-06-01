@@ -79,11 +79,11 @@ To udbredte teknologier til dette er `FFI` og `WASM`. `FFI` (Foreign Function In
 gør det muligt at kalde funktioner i et eksternt, native library direkte, og på
 tværs af programmeringssprog @ffi-wiki. `WASM` (WebAssembly) er et åbent binært format, oprindeligt
 designet til brug i browsere, men bliver i dag også brugt server-side som et sandboxet
-miljø til eksekvering af eksterne moduler @wasm-wiki. Begge kan bruges til at loade
-og køre ekstern kode, men de adskiller sig i implementering, sikkerhed og ydelse.
+miljø til eksekvering af eksterne moduler @wasm-wiki.
 
-I dette projekt udvikles der en reverse proxy i Rust, der understøtter udvidelser
-via begge teknologier. Udvidelserne skrives ligeledes i Rust, så implementeringsforskellene
+Begge kan bruges til at loade og køre ekstern kode, men de adskiller sig i
+implementering, sikkerhed og ydelse. I dette projekt udvikles der en reverse proxy
+i Rust, der understøtter udvidelser via begge teknologier. Udvidelserne skrives ligeledes i Rust, så implementeringsforskellene
 ikke defineres af sproglige faktorer. Denne synopse undersøger og sammenligner de
 to tilgange i forhold til implementeringskompleksitet, hastighed og hukommelsesforbrug.
 
