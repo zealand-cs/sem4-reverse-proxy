@@ -738,38 +738,12 @@ Vi kan konkludere at det er muligt at designe en udvidelig reverse proxy i Rust,
 der understøtter både `FFI` og `WASM` som plugin-mekanismer, og at de to tilgange
 adskiller sig markant i implementeringskompleksitet, performance og ressourceforbrug.
 
-En reverse proxy kan udvides relativt hurtigt ved brug af eksisterende crates i
-Rust-økosystemet. De essentielle crates der sørger for at selve reverse proxyen
-fungerer er: `tokio`, `hyper`, `http-body-util`, `hyper-util` og `bytes`.
-
-`libloading` hjælper med at læse FFI extensions og `wasmtime` læser, compilerer og
-eksekverer `WASM`-moduler. Disse to crates er implementeret i separate moduler og
-er wired sammen med et fælles trait, som reverse proxyen udelukkende benytter.
-Dette design betyder at reverse proxyen er agnostisk over for hvilken plugin-mekanisme
-der bruges.
-
-Noget af det første reverse proxyen gør når den starter, er at parse konfigurationen
-og derefter loade de extensions der er defineret i samme konfiguration. Extensionsne
-kan "subscribe" på forskellige hooks via en bitmask, og proxyen kalder kun de extensions
-der har registreret sig på en given hook.
-
-`FFI`-implementeringen udgør ca. 200 linjer kode og `WASM`-implementeringen ca. 300.
-Forskellen skyldes bl.a. at `WASM` kræver mere boilerplate, fx ved brug af en `Mutex`-wrapper
-for at gøre `Store` thread-safe, eksplicitte allokerings- og frigørelses-funktioner
-i modulets hukommelse og et bit-packing trick da `wasm32` ABI'en ikke eksporterer
-multi-value returns korrekt.
-
-Den mest konkrete forskel i udviklingsoplevelsen er mængden af `unsafe`-kode.
-`WASM`-implementeringen indeholder ikke nogen runtime-`unsafe`-blokke, da `wasmtime`
-eksponerer et fuldstændigt sikkert API. `FFI`-implementeringen indeholder ca. otte
-runtime `unsafe`-blokke, hvilket er uundgåeligt når man arbejder direkte med native
-kode og raw C-pointers. Dette er ikke en fejl ved `FFI`, men en konsekvens
-af hvad `FFI` er designet til at være, et direkte vidue ind i et andet sprogs adresserum.
-
-Fra en udviklers perspektiv er `FFI` mere direkte og tættere på hvad Rust-udviklere
-allerede kender til. `WASM` kræver viden og forståelse for hvordan `wasmtime`'s
-koncepter som `Store`, `Linker` og `Engine` fungerer, men resulterer dog i et sikrere
-API hvor fejl primært fanges ved kompilering frem for runtime.
+`FFI`-implementeringen er kortere (~200 vs ~300 linjer) og mere direkte, men kræver
+ca. otte `unsafe`-blokke, hvorimod `WASM` er mere verbose men indeholder ingen
+runtime-`unsafe` kode. Fra en udviklers perspektiv er `FFI` tættere på hvad
+Rust-udviklere allerede kender, mens `WASM` kræver forståelse for `wasmtime`'s
+koncepter som `Store`, `Linker` og `Engine`, men resulterer i et sikrere API hvor
+fejl primært fanges ved kompilering.
 
 Baseret på benchmarksne vinder `FFI` i alle kategorier. Opstartstiden er næsten
 identisk med baselinjen, mens `WASM` er omkring 4,4 gange langsommere at starte,
@@ -822,10 +796,24 @@ for sandboxing.
 `FFI` og `WASM` er to fundamentalt forskellige filosofier: tillid vs isolation, og
 dette valg er ikke unikt for reverse proxies, men for alle situationer hvor en
 applikation skal køre ekstern kode. Da extension-økosystemer vokser og tredjeparts-
-udvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
-Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere
-`WASM`'s boilerplate og overhead, hvilket på sigt kan ændre denne balance. Men
-den grundlæggende filosofiske forskel på `FFI` og `WASM` vil altid forblive.
+udvidelser bliver mere udbredte, bliver denne beslutning mere relevant. Valget
+afspejles allerede i industrien: Nginx bruger native C-moduler der loades direkte
+i processen (FFI-tilgangen), mens Envoy Proxy har valgt `WASM` som sin officielle
+plugin-mekanisme netop for at isolere tredjeparts-kode fra hostens adresserum.
+
+`WASM` bevæger sig desuden i stigende grad ud af browseren. Platforme som Cloudflare
+Workers og Fastly Compute kører `WASM`-moduler server-side på edge-niveau, og WASI
+(WebAssembly System Interface) arbejder på at standardisere OS-adgang for `WASM`
+uden for browseren. Dette tyder på at `WASM`'s rolle som sandboxet eksekverings-
+miljø kun vil vokse, hvilket gør sammenligningen med `FFI` mere relevant over tid.
+
+Designet med et fælles `Extension`-trait gør at reverse proxyen er agnostisk over
+for hvilken plugin-mekanisme der bruges. Det betyder at den underliggende implementering
+kan udskiftes uden at ændre host-applikationen, så længe den nye implementering
+opfylder samme trait. Standarder som `Wasm Component Model` @wasm-component-model
+arbejder på at reducere `WASM`'s boilerplate og overhead, og kunne på sigt erstatte
+den nuværende `wasmtime`-implementering bag det samme interface. Den grundlæggende
+filosofiske forskel på `FFI` og `WASM` vil dog altid forblive.
 
 = Refleksion
 
