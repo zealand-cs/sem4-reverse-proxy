@@ -38,7 +38,7 @@
 // - Danner grundlag for mundtlig eksamen
 //
 // > En synopsis er ikke en fuld rapport. Den skal være kort, fokuseret og undersøgende.
-// > Det vigtigste er, at I viser, hvad I undersøger, hvordan I unsersøger det, og
+// > Det vigtigste er, at I viser, hvad I undersøger, hvordan I undersøger det, og
 // > hvad I finder ud af.
 //
 // ## Hvordan foregår eksamen?
@@ -68,7 +68,7 @@
 Udvidelse af software uden at skulle kende kildekoden kan være en stærk motivator
 for tredjeparter til at bruge netop dit projekt. Plugin-systemer er et meget velkendt
 fænomen i softwareverdenen, fra Nginx-moduler til VS Code-udvidelser til Minecraft
-servere, og hvordan disse implementeres bagved er ikke nødvendighvis triviel.
+servere, og hvordan disse implementeres bagved er ikke nødvendigvis triviel.
 
 En reverse proxy sidder foran én eller flere services og viderestiller indgående
 HTTP-kald fra klienten. Det er en meget central byggesten i moderne infrastruktur,
@@ -84,7 +84,7 @@ og køre ekstern kode, men de adskiller sig i implementering, sikkerhed og ydels
 
 I dette projekt udvikles der en reverse proxy i Rust, der understøtter udvidelser
 via begge teknologier. Udvidelserne skrives ligeledes i Rust, så implementeringsforskellene
-ikke defineres af sproglige faktorer. Denne synopse unsersøger og sammenligner de
+ikke defineres af sproglige faktorer. Denne synopse undersøger og sammenligner de
 to tilgange i forhold til implementeringskompleksitet, hastighed og hukommelsesforbrug.
 
 
@@ -533,7 +533,7 @@ En stor forskel på de to implementeringer er mængden af `unsafe`-kode. `WASM`-
 indeholder ikke nogen runtime `unsafe`-kode da `wasmtime` kun eksponerer et fuldstændigt sikkert API,
 og al kommunikation med `WASM`-modulet sker kun gennem `wasmtime`. Derimod indeholder
 `FFI`-implementeringen ca. otte runtime `unsafe` blokke. Dette er dog ikke nødvendigvis
-en svaghed ved `FFI`-implementeringen, da det er uungåeligt når man arbejder med
+en svaghed ved `FFI`-implementeringen, da det er uundgåeligt når man arbejder med
 native kode. Dette viser dog at `WASM`'s sandboxing også afspejles i selve koden.
 
 == Test-extensions
@@ -761,7 +761,7 @@ unødvendigt for `FFI` hvor man kan sende rå pointere direkte. Dette betyder at
 `FFI`-implementeringen bærer et serialiserings-overhead den ikke behøver,
 og at den reelle forskel mellem `FFI` og en native extension sandsynligvis ville
 være endnu mindre. Det ændrer dog ikke konklusionen, da `FFI` slår `WASM` i alle
-benchmarks, men forklarer den større, uforudsete forskel på trhoughput mellem `FFI`
+benchmarks, men forklarer den større, uforudsete forskel på throughput mellem `FFI`
 og `no-plugins` som set på @fig-load-rps.
 
 Disse delkonklusioner hjælper os til at besvare den overordnede problemformulering.
@@ -798,11 +798,11 @@ skal køre ekstern kode. Med `FFI` accepterer man at en extension er udviklet af
 betroet udvikler og man belønnes med minimalt overhead. Med `WASM` antager man det
 modsatte og betaler en runtime-pris for denne garanti. Da extension-økosystem vokser
 og tredjeparsudvidelser bliver mere udbredte, bliver denne beslutning mere relevant.
-Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere `WASM`'s boilderplate
+Standarder som `Wasm Component Model` @wasm-component-model arbejder på at reducere `WASM`'s boilerplate
 og overhead, hvilket på sigt kan ændre denne balance. Men den grundlæggende filosofiske
 forskel på `FFI` og `WASM` vil altid forblive.
 
-= Reflektion
+= Refleksion
 
 // - Var problemformuleringen skarp nok?
 // - Var metoden god nok?
