@@ -146,7 +146,7 @@ udviklingskompleksitet, performance og ressourceforbrug?
 
 Følgende underspørgsmål vil blive undersøgt i forbindelse med problemformuleringen:
 
-1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis WASM og FFI?
+1. Hvordan kan en reverse proxy i Rust udvides med plugins via henholdsvis `WASM` og `FFI`?
 
 2. Hvilke forskelle er der mellem `FFI` og `WASM` i forhold til kodekompleksitet,
   læsbarhed og udviklingsoplevelse?
@@ -175,7 +175,7 @@ på applikationen via hooks som applikationen kalder gennem sin levetid.
 
 For at sikre at de to implementationer ikke påvirker hinanden under tests, bruges
 feature flags @rust-lang-docs-features til at slå `FFI` og `WASM`-koden til og fra
-ved kompilering. Begge implementeringer vil køre gennem ét trait @rust-lang-docs-traits,
+ved kompilering. Begge implementeringer vil køre gennem én trait @rust-lang-docs-traits,
 så applikationen forholder sig til én ensartet måde at kalde extensions på.
 
 `FFI` extensions bliver indlæst med `libloading`, der giver en sikker
@@ -228,13 +228,13 @@ rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udfør
   [Synopsis: Metodeafsnit], [3 timer],
   [Implementering: Konfigurationsparsing og routing], [5 timer],
   [Implementering: Extension trait og MessagePack-protokol], [4 timer],
-  [Implementering: FFI-integration med `libloading`], [6 timer],
-  [Implementering: WASM-integration med `wasmtime`], [8 timer],
+  [Implementering: `FFI`-integration med `libloading`], [6 timer],
+  [Implementering: `WASM`-integration med `wasmtime`], [8 timer],
   [Implementering: Demo-server], [2 timer],
   [Implementering: Test-extensions (`log-ffi`, `log-wasm`)], [3 timer],
   [Benchmarking-setup og kørsel (`hyperfine`, `oha`)], [5 timer],
   [Synopsis: Reverse proxy-afsnit], [3 timer],
-  [Synopsis: FFI- og WASM-afsnit], [6 timer],
+  [Synopsis: `FFI`- og `WASM`-afsnit], [6 timer],
   [Synopsis: Benchmarkanalyse og grafer], [4 timer],
   [Synopsis: Konklusion og perspektivering], [4 timer],
   [Synopsis: Refleksion], [2 timer],
@@ -254,7 +254,7 @@ rækkefølge, altså bliver der måske rykket rundt imens det hele bliver udfør
 // > Her skal I ikke bare vise kode, screenshots eller tabeller. I skal forklare,
 // > hvad arbejdet viser, og hvordan det hjælper jer med at svare på problemformuleringen.
 
-For at kunne implementere noget som helst med ekstensions må grundstenene på plads
+For at kunne implementere noget som helst med extensions må grundstenene på plads
 først. Det omhandler parsing af konfiguration, sætte en async-runtime op og så
 reelt route requests til destinationer.
 
@@ -357,16 +357,16 @@ implementeres begge gennem et `Extension` trait @rust-lang-docs-traits. Traiten
 definerer nogle forskellige hooks: `on_load`, `on_unload`, `on_request`, `on_response`,
 og `on_error`. Extensions definerer så med en bitmask hvilke hooks de vil reagere
 på. Ved at bruge en bitmask kan man undgå unødvendige kald til extensions der ikke
-har nogen intensioner om at blive kaldt på specifikke hooks, og derved undgå at
+har nogen intentioner om at blive kaldt på specifikke hooks, og derved undgå at
 krydse mellem `WASM` eller andet eksternt sprog når det ikke er nødvendigt. En hook
 returnerer så en `HookResult` der enten er `Continue`, `Replace` eller `Error`.
-`Continue` bruges når alt forløb successfuldt og kan ændre headers og/eller body,
+`Continue` bruges når alt forløb succesfuldt og kan ændre headers og/eller body,
 `Replace` er et helt nyt svar og `Error` er når der sker en fejl.
 
 For at kommunikere mellem proxy og extensions bruges der MessagePack @docs-rmp-serde,
 der serialiserer request og response-kontekster til binære buffere. Ved at bruge
-MessagePack simplificerede vi dette projekts implementation, men kan i fremtiden
-også betyde at man kan skrive ekstensions i andre sprog der har MessagePack implementeret.
+MessagePack simplificeres dette projekts implementation, men kan i fremtiden
+også betyde at man kan skrive extensions i andre sprog der har MessagePack implementeret.
 
 Runtime-performance ville evt. kunne forbedres ved at bruge en custom protokol istedet.
 Dette er dog ikke målet for projektet, så længe `WASM` og `FFI` er på lige fod.
@@ -445,10 +445,10 @@ body. `Replace` returnerer et helt nyt svar, og `Error` indikerer en fejl.
 Capabilities komponeres med bitmask-konstanter i `caps`-modulet (@rust-caps-module),
 fx `ON_REQUEST | ON_RESPONSE` for en extension der vil reagere på begge.
 
-== FFI implementering
+== `FFI` implementering
 
 Filen `src/extensions/ffi.rs` indeholder ca. 200 linjer kode og er alt kode specifik
-til implementering af FFI. Filen beskriver primært structen `FfiExtension` der
+til implementering af `FFI`. Filen beskriver primært structen `FfiExtension` der
 implementerer `Extension` trait.
 
 #figure(
@@ -498,10 +498,10 @@ præcis hvad der blev allokeret. Implementeringen af `Extension` for `FfiExtensi
 konverterer de rå `C`-typer til Rust-typer @extension-trait og sørger for at kalde
 `fn_free` på det rigtige tidspunkt.
 
-== WASM implementering
+== `WASM` implementering
 
 Filen `src/extensions/wasm.rs` indeholder ca. 300 linjer kode og indeholder alt
-kode specifikt til implementering af WASM.
+kode specifikt til implementering af `WASM`.
 
 `WASM`-implementeringen består af to structs. Da `wasmtime`'s `Store` er `!Sync`
 @rust-lang-send-and-sync og derfor ikke kan deles mellem threads, wrappes den i en
@@ -549,8 +549,8 @@ hook-funktioner og hukommelse ligger i `WasmExtensionInstance`
 
 WASM-moduler kører i et isoleret sandboxet miljø og kan derfor ikke kalde vilkårlige
 OS-funktioner. Det er host-applikationens ansvar eksplicit at eksponere de funktioner
-et modul må kalde, via `wasmtime`'s `Linker`. Her eksponerer vi kun én enkelt host-funktion:
-`env::log`, der give extensions mulighed for at printe til værtens `stdout` ved
+et modul må kalde, via `wasmtime`'s `Linker`. Her eksponeres kun én enkelt host-funktion:
+`env::log`, der giver extensions mulighed for at printe til værtens `stdout` ved
 at sende en pointer og en længde. For `FFI` gælder det modsatte da modulet kører
 i samme adresserum som applikationen og kan i princippet kalde hvad som helst.
 `WASM`'s model er dermed mere strikt, men giver kontrol over hvad extensions har
@@ -573,7 +573,7 @@ direkte arbejde med native kode. `WASM`'s sandboxing afspejles altså i selve ko
 To extensions med identisk funktionalitet er skrevet: `log-ffi` og `log-wasm`. Begge
 registrerer `ON_REQUEST`, deserialiserer konteksten, printer request-detaljer og
 returnerer `Continue`. Målet er ikke at teste selve extension-kodens performance,
-men overheadet fra integrationen mellem hovedapplikationen og extensionsne.
+men overheadet fra integrationen mellem hovedapplikationen og extensions.
 
 == Benchmarks
 
@@ -613,13 +613,12 @@ grafer genereret med `lilaq` @lilaq-homepage, et library til `Typst` @typst-app.
     lq.plot((1,), (s_means.at(1),), yerr: (s_stddevs.at(1),), stroke: none, mark: none, color: black),
     lq.plot((2,), (s_means.at(2),), yerr: (s_stddevs.at(2),), stroke: none, mark: none, color: black),
   ),
-  caption: [Opstartstid (TTFB) for de tre varianter, `hyperfine --warmup 2 --runs 10`, lokal demo-server, gennemsnit ± stddev (lavere er bedre)],
+  caption: [Opstartstid for de tre varianter, `hyperfine --warmup 2 --runs 10`, lokal demo-server, gennemsnit ± stddev (lavere er bedre)],
 ) <fig-startup>
 
-@fig-startup viser TTFB (Time To First Byte), altså tiden fra proxyen startes til den
-returnerer sit første HTTP-svar. Benchmarket starter proxyen, poller med `curl` indtil
-det første succesfulde svar ankommer og måler den samlede tid med `hyperfine`. FFI
-tilføjer næsten ikke overhead, mens WASM er 4,4 gange langsommere at starte. Dette
+@fig-startup viser tiden fra proxyen startes til den returnerer sit første HTTP-svar. Benchmarket starter proxyen, poller med `curl` indtil
+det første succesfulde svar ankommer og måler den samlede tid med `hyperfine`. `FFI`
+tilføjer næsten ikke overhead, mens `WASM` er 4,4 gange langsommere at starte. Dette
 er primært fordi `wasmtime` JIT-kompilerer modulet ved load.
 
 #let _l_noplugins = json("results/load_no-plugins.json")
@@ -720,8 +719,8 @@ på `FFI` og `WASM`.
   ],
 ) <fig-memory>
 
-Hukommelsesforbruget er marginalt for FFI (+564 kB), men markant større for
-WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget.
+Hukommelsesforbruget er marginalt for `FFI` (+564 kB), men markant større for
+`WASM` (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget.
 
 = Konklusion
 
@@ -735,7 +734,7 @@ WASM (+34,5 MB), da `wasmtime`-runtimen og den JIT-kompilerede kode fylder meget
 // > bruge de resultater og observationer, I allerede har præsenteret, til at svare
 // > på problemformuleringen.
 
-Vi kan konkludere at det er muligt at designe en udvidelig reverse proxy i Rust,
+Det kan konkluderes at det er muligt at designe en udvidelig reverse proxy i Rust,
 der understøtter både `FFI` og `WASM` som plugin-mekanismer, og at de to tilgange
 adskiller sig markant i implementeringskompleksitet, performance og ressourceforbrug.
 
@@ -746,7 +745,7 @@ Rust-udviklere allerede kender, mens `WASM` kræver forståelse for `wasmtime`'s
 koncepter som `Store`, `Linker` og `Engine`, men resulterer i et sikrere API hvor
 fejl primært fanges ved kompilering.
 
-Baseret på benchmarksne vinder `FFI` i alle kategorier. Opstartstiden er næsten
+Baseret på resultaterne vinder `FFI` i alle kategorier. Opstartstiden er næsten
 identisk med baselinjen, mens `WASM` er omkring 4,4 gange langsommere at starte,
 primært fordi `WASM` JIT-kompilerer modulet ved load. Throughput falder med 28,8%
 for `FFI` og 37,9% for `WASM` sammenlignet med baselinjen og hukommelsesforbruget
@@ -776,7 +775,7 @@ teknologier, og sammenligningen har sine grænser. `FFI` er en mekanisme der gø
 forskellige programmeringssprog kan tale direkte sammen @ffi-wiki, hvorimod `WASM`
 er en åben standard for et portabelt binært format, oprindeligt designet til browsere
 @wasm-wiki. At de begge kan bruges til extensions er en anvendelse de deler, men
-ikke hvad de er designet til. Benchmarksne sammenligner altså ikke to ligeværdige
+ikke hvad de er designet til. Resultaterne sammenligner altså ikke to ligeværdige
 løsninger på samme problem, men to teknologier med forskelligt ophav, brugt til
 samme formål.
 
@@ -799,7 +798,7 @@ dette valg er ikke unikt for reverse proxies, men for alle situationer hvor en
 applikation skal køre ekstern kode. Da extension-økosystemer vokser og tredjeparts-
 udvidelser bliver mere udbredte, bliver denne beslutning mere relevant. Valget
 afspejles allerede i industrien: Nginx bruger native C-moduler der loades direkte
-i processen (FFI-tilgangen), mens Envoy Proxy har valgt `WASM` som sin officielle
+i processen (`FFI`-tilgangen), mens Envoy Proxy har valgt `WASM` som sin officielle
 plugin-mekanisme netop for at isolere tredjeparts-kode fra hostens adresserum.
 
 `WASM` bevæger sig desuden i stigende grad ud af browseren. Platforme som Cloudflare
@@ -837,7 +836,7 @@ sammenligning ville have inkluderet en variant hvor `FFI` bruger rå pointere di
 hvilket ville have isoleret serialiseringsoverheadet og givet et klarere billede af
 `FFI`'s reelle ydelse.
 
-Benchmarksne er kun kørt på én maskine, og resultaterne kan ikke nødvendigvis
+Benchmarks er kun kørt på én maskine, og resultaterne kan ikke nødvendigvis
 reproduceres på andre styresystemer. Det har dog størst betydning for de absolutte
 tal, da alle tre varianter er kørt under identiske forhold, og de relative forskelle
 mellem `no-plugins`, `FFI` og `WASM` bør derfor være omtrent de samme uanset platform.
