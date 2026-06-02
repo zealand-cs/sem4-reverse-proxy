@@ -1,0 +1,3 @@
+no-plugins: VmRSS:	    5272 kB
+ffi: VmRSS:	    5832 kB
+wasm: VmRSS:	   41304 kB

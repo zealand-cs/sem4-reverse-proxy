@@ -589,9 +589,9 @@ grafer genereret med `lilaq` @lilaq-homepage, et library til `Typst` @typst-app.
   vil være samme tendens på andre systemer.
 ]
 
-#let _s_noplugins = json("results/startup_no-plugins.json").results.at(0)
-#let _s_ffi = json("results/startup_ffi.json").results.at(0)
-#let _s_wasm = json("results/startup_wasm.json").results.at(0)
+#let _s_noplugins = json("benchmarks/startup_no-plugins.json").results.at(0)
+#let _s_ffi = json("benchmarks/startup_ffi.json").results.at(0)
+#let _s_wasm = json("benchmarks/startup_wasm.json").results.at(0)
 
 #let s_means = (_s_noplugins.mean * 1000, _s_ffi.mean * 1000, _s_wasm.mean * 1000)
 #let s_stddevs = (_s_noplugins.stddev * 1000, _s_ffi.stddev * 1000, _s_wasm.stddev * 1000)
@@ -621,9 +621,9 @@ det første succesfulde svar ankommer og måler den samlede tid med `hyperfine`.
 tilføjer næsten ikke overhead, mens `WASM` er 4,4 gange langsommere at starte. Dette
 er primært fordi `wasmtime` JIT-kompilerer modulet ved load.
 
-#let _l_noplugins = json("results/load_no-plugins.json")
-#let _l_ffi = json("results/load_ffi.json")
-#let _l_wasm = json("results/load_wasm.json")
+#let _l_noplugins = json("benchmarks/load_no-plugins.json")
+#let _l_ffi = json("benchmarks/load_ffi.json")
+#let _l_wasm = json("benchmarks/load_wasm.json")
 
 #let _lp(d, p) = d.latencyPercentiles.at(p) * 1000
 #let _bar_w = 0.25
@@ -689,7 +689,7 @@ På @fig-load-rps ses det at throughput falder med 28,8 % for `FFI` og 37,9 % fo
 `WASM` sammenlignet med baseline. Der er ~#calc.round(37.9 - 28.8)%-point forskel
 på `FFI` og `WASM`.
 
-#let _mem_raw = read("results/memory_peak.txt")
+#let _mem_raw = read("benchmarks/memory_peak.txt")
 #let _mem_lines = _mem_raw.trim().split("\n")
 #let _mem_val(line) = float(
   line.split(regex("\s+")).filter(p => p != "").at(-2),
