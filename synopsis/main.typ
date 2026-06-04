@@ -21,11 +21,12 @@
   email: "wij001@edu.zealand.dk",
   title: [Plugin-arkitektur i Rust: #linebreak() FFI vs. WASM i modulær software],
   abstract: none,
-  date: datetime(year: 2026, month: 06, day: 05),
+  date: datetime(year: 2026, month: 06, day: 04),
   character-count: total-characters,
   normalsider: normalsider,
   institution: [Zealand - Sjællands Erhvervsakademi],
   programme: [Datamatiker],
+  repo: "https://github.com/zealand-cs/sem4-reverse-proxy"
 )
 
 // ## Hvad er en synopsis?
@@ -686,7 +687,7 @@ er primært fordi `wasmtime` JIT-kompilerer modulet ved load.
 ) <fig-load-rps>
 
 På @fig-load-rps ses det at throughput falder med 28,8 % for `FFI` og 37,9 % for
-`WASM` sammenlignet med baseline. Der er ~#calc.round(37.9 - 28.8)%-point forskel
+`WASM` sammenlignet med baseline. Der er \~#calc.round(37.9 - 28.8)%-point forskel
 på `FFI` og `WASM`.
 
 #let _mem_raw = read("benchmarks/memory_peak.txt")
@@ -738,7 +739,7 @@ Det kan konkluderes at det er muligt at designe en udvidelig reverse proxy i Rus
 der understøtter både `FFI` og `WASM` som plugin-mekanismer, og at de to tilgange
 adskiller sig markant i implementeringskompleksitet, performance og ressourceforbrug.
 
-`FFI`-implementeringen er kortere (~200 vs ~300 linjer) og mere direkte, men kræver
+`FFI`-implementeringen er kortere (\~200 vs \~300 linjer) og mere direkte, men kræver
 ca. otte `unsafe`-blokke, hvorimod `WASM` er mere verbose men indeholder ingen
 runtime-`unsafe` kode. Fra en udviklers perspektiv er `FFI` tættere på hvad
 Rust-udviklere allerede kender, mens `WASM` kræver forståelse for `wasmtime`'s

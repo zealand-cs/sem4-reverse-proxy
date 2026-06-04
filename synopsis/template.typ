@@ -13,6 +13,7 @@
   normalsider: none,
   institution: none,
   programme: none,
+  repo: none,
 ) = {
   set page(paper: "a4", margin: 30mm)
 
@@ -35,6 +36,7 @@
   if email != none { meta.push((label: "E-mail", value: email)) }
   if institution != none { meta.push((label: "Institution", value: institution)) }
   if programme != none { meta.push((label: "Uddannelse", value: programme)) }
+  if repo != none { meta.push((label: "Repository", value: repo)) }
   if date != none { meta.push((label: "Dato", value: date.display("[day]. [month repr:short] [year]"))) }
   if character-count != none { meta.push((label: "Tegn inkl. mellemrum", value: character-count)) }
   if normalsider != none { meta.push((label: "Normalsider", value: normalsider)) }
@@ -69,6 +71,7 @@
   normalsider: none,
   institution: none,
   programme: none,
+  repo: none,
   body,
 ) = {
   set document(
@@ -94,6 +97,7 @@
       normalsider: normalsider,
       institution: institution,
       programme: programme,
+      repo: repo,
     )
     pagebreak()
   }
