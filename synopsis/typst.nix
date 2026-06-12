@@ -60,6 +60,9 @@
       apps = {
         build-synopsis = mkPdfApp (build-script "./main.typ");
         watch-synopsis = mkPdfApp (watch-script "./main.typ");
+
+        build-presentation = mkPdfApp (build-script "./presentation.typ");
+        watch-presentation = mkPdfApp (watch-script "./presentation.typ");
       };
 
       devShells.typix = typixLib.devShell {
