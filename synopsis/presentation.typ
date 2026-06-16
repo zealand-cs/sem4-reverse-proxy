@@ -32,6 +32,7 @@
 
   #title[Agenda]
 
+  #set text(size: 18pt)
   #outline(title: none)
 ]
 
@@ -46,16 +47,13 @@
 ]
 
 #slide[
-  == Hvad er en reverse proxy?
+  #set align(horizon)
 
-  - Sidder foran én eller flere services
-  - Viderestiller indgående HTTP-kald
-  - Extensions kobler sig på via hooks: \
-    `on_request`, `on_response`, `on_error`
+  == Reverse proxy
 ]
 
 #slide[
-  == FFI vs. WASM -- kort fortalt
+  == FFI vs. WASM
 
   #toolbox.side-by-side[
     *FFI*
@@ -109,11 +107,11 @@
 // ── Del 2: Nye tanker og refleksioner (~5 min) ──
 
 #slide[
-  == MessagePack: en uventet skævhed
+  == Serialisering
 
-  - Begge bruger MessagePack til serialisering
   - _Nødvendigt_ for WASM (separat hukommelse)
   - _Unødvendigt_ for FFI
+  - Begge bruger MessagePack til serialisering
   - FFI bærer et overhead den ikke behøver
   - Den reelle forskel i throughput er nok _mindre_ end målt
 ]
@@ -124,8 +122,7 @@
   - Benchmark _med_ og _uden_ serialisering for FFI
   - Teste på flere platforme (macOS, andre CPU-arkitekturer)
   - Prøve ahead-of-time kompilering for WASM \
-    (`wasmtime` understøtter det -- ville ændre opstartstid)
-  - Prøve et SDK/macro-library til extension-udviklere
+    (`wasmtime` understøtter det)
 ]
 
 #slide[
@@ -140,7 +137,7 @@
 ]
 
 #slide[
-  == Perspektiv: Industrien
+  == Brug i verden
 
   - Nginx: native C-moduler (FFI-tilgangen)
   - Envoy Proxy: WASM som officiel plugin-mekanisme
